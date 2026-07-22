@@ -25,6 +25,7 @@ import {
   type Quotation,
   type TeamMember,
 } from "../data/backend-data";
+import { api } from "@/lib/api";
 import type { ApiAction } from "@/lib/backend-types";
 
 // Deep clone helpers so we can restore fixtures on reset
