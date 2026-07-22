@@ -9,38 +9,366 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TeamRouteImport } from './routes/team'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ProductsRouteImport } from './routes/products'
+import { Route as PaymentsRouteImport } from './routes/payments'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as InboxRouteImport } from './routes/inbox'
+import { Route as DemoRouteImport } from './routes/demo'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AutomationsRouteImport } from './routes/automations'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as AiAssistantRouteImport } from './routes/ai-assistant'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as QuotationsIndexRouteImport } from './routes/quotations.index'
+import { Route as OrdersIndexRouteImport } from './routes/orders.index'
+import { Route as InvoicesIndexRouteImport } from './routes/invoices.index'
+import { Route as CustomersIndexRouteImport } from './routes/customers.index'
+import { Route as QuotationsIdRouteImport } from './routes/quotations.$id'
+import { Route as OrdersIdRouteImport } from './routes/orders.$id'
+import { Route as InvoicesIdRouteImport } from './routes/invoices.$id'
+import { Route as CustomersIdRouteImport } from './routes/customers.$id'
 
+const TeamRoute = TeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductsRoute = ProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentsRoute = PaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InboxRoute = InboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AutomationsRoute = AutomationsRouteImport.update({
+  id: '/automations',
+  path: '/automations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiAssistantRoute = AiAssistantRouteImport.update({
+  id: '/ai-assistant',
+  path: '/ai-assistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QuotationsIndexRoute = QuotationsIndexRouteImport.update({
+  id: '/quotations/',
+  path: '/quotations/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersIndexRoute = OrdersIndexRouteImport.update({
+  id: '/orders/',
+  path: '/orders/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvoicesIndexRoute = InvoicesIndexRouteImport.update({
+  id: '/invoices/',
+  path: '/invoices/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomersIndexRoute = CustomersIndexRouteImport.update({
+  id: '/customers/',
+  path: '/customers/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuotationsIdRoute = QuotationsIdRouteImport.update({
+  id: '/quotations/$id',
+  path: '/quotations/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersIdRoute = OrdersIdRouteImport.update({
+  id: '/orders/$id',
+  path: '/orders/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvoicesIdRoute = InvoicesIdRouteImport.update({
+  id: '/invoices/$id',
+  path: '/invoices/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomersIdRoute = CustomersIdRouteImport.update({
+  id: '/customers/$id',
+  path: '/customers/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai-assistant': typeof AiAssistantRoute
+  '/analytics': typeof AnalyticsRoute
+  '/automations': typeof AutomationsRoute
+  '/dashboard': typeof DashboardRoute
+  '/demo': typeof DemoRoute
+  '/inbox': typeof InboxRoute
+  '/login': typeof LoginRoute
+  '/payments': typeof PaymentsRoute
+  '/products': typeof ProductsRoute
+  '/settings': typeof SettingsRoute
+  '/team': typeof TeamRoute
+  '/customers/$id': typeof CustomersIdRoute
+  '/invoices/$id': typeof InvoicesIdRoute
+  '/orders/$id': typeof OrdersIdRoute
+  '/quotations/$id': typeof QuotationsIdRoute
+  '/customers/': typeof CustomersIndexRoute
+  '/invoices/': typeof InvoicesIndexRoute
+  '/orders/': typeof OrdersIndexRoute
+  '/quotations/': typeof QuotationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai-assistant': typeof AiAssistantRoute
+  '/analytics': typeof AnalyticsRoute
+  '/automations': typeof AutomationsRoute
+  '/dashboard': typeof DashboardRoute
+  '/demo': typeof DemoRoute
+  '/inbox': typeof InboxRoute
+  '/login': typeof LoginRoute
+  '/payments': typeof PaymentsRoute
+  '/products': typeof ProductsRoute
+  '/settings': typeof SettingsRoute
+  '/team': typeof TeamRoute
+  '/customers/$id': typeof CustomersIdRoute
+  '/invoices/$id': typeof InvoicesIdRoute
+  '/orders/$id': typeof OrdersIdRoute
+  '/quotations/$id': typeof QuotationsIdRoute
+  '/customers': typeof CustomersIndexRoute
+  '/invoices': typeof InvoicesIndexRoute
+  '/orders': typeof OrdersIndexRoute
+  '/quotations': typeof QuotationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ai-assistant': typeof AiAssistantRoute
+  '/analytics': typeof AnalyticsRoute
+  '/automations': typeof AutomationsRoute
+  '/dashboard': typeof DashboardRoute
+  '/demo': typeof DemoRoute
+  '/inbox': typeof InboxRoute
+  '/login': typeof LoginRoute
+  '/payments': typeof PaymentsRoute
+  '/products': typeof ProductsRoute
+  '/settings': typeof SettingsRoute
+  '/team': typeof TeamRoute
+  '/customers/$id': typeof CustomersIdRoute
+  '/invoices/$id': typeof InvoicesIdRoute
+  '/orders/$id': typeof OrdersIdRoute
+  '/quotations/$id': typeof QuotationsIdRoute
+  '/customers/': typeof CustomersIndexRoute
+  '/invoices/': typeof InvoicesIndexRoute
+  '/orders/': typeof OrdersIndexRoute
+  '/quotations/': typeof QuotationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/ai-assistant'
+    | '/analytics'
+    | '/automations'
+    | '/dashboard'
+    | '/demo'
+    | '/inbox'
+    | '/login'
+    | '/payments'
+    | '/products'
+    | '/settings'
+    | '/team'
+    | '/customers/$id'
+    | '/invoices/$id'
+    | '/orders/$id'
+    | '/quotations/$id'
+    | '/customers/'
+    | '/invoices/'
+    | '/orders/'
+    | '/quotations/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/ai-assistant'
+    | '/analytics'
+    | '/automations'
+    | '/dashboard'
+    | '/demo'
+    | '/inbox'
+    | '/login'
+    | '/payments'
+    | '/products'
+    | '/settings'
+    | '/team'
+    | '/customers/$id'
+    | '/invoices/$id'
+    | '/orders/$id'
+    | '/quotations/$id'
+    | '/customers'
+    | '/invoices'
+    | '/orders'
+    | '/quotations'
+  id:
+    | '__root__'
+    | '/'
+    | '/ai-assistant'
+    | '/analytics'
+    | '/automations'
+    | '/dashboard'
+    | '/demo'
+    | '/inbox'
+    | '/login'
+    | '/payments'
+    | '/products'
+    | '/settings'
+    | '/team'
+    | '/customers/$id'
+    | '/invoices/$id'
+    | '/orders/$id'
+    | '/quotations/$id'
+    | '/customers/'
+    | '/invoices/'
+    | '/orders/'
+    | '/quotations/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AiAssistantRoute: typeof AiAssistantRoute
+  AnalyticsRoute: typeof AnalyticsRoute
+  AutomationsRoute: typeof AutomationsRoute
+  DashboardRoute: typeof DashboardRoute
+  DemoRoute: typeof DemoRoute
+  InboxRoute: typeof InboxRoute
+  LoginRoute: typeof LoginRoute
+  PaymentsRoute: typeof PaymentsRoute
+  ProductsRoute: typeof ProductsRoute
+  SettingsRoute: typeof SettingsRoute
+  TeamRoute: typeof TeamRoute
+  CustomersIdRoute: typeof CustomersIdRoute
+  InvoicesIdRoute: typeof InvoicesIdRoute
+  OrdersIdRoute: typeof OrdersIdRoute
+  QuotationsIdRoute: typeof QuotationsIdRoute
+  CustomersIndexRoute: typeof CustomersIndexRoute
+  InvoicesIndexRoute: typeof InvoicesIndexRoute
+  OrdersIndexRoute: typeof OrdersIndexRoute
+  QuotationsIndexRoute: typeof QuotationsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/team': {
+      id: '/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof TeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/products': {
+      id: '/products'
+      path: '/products'
+      fullPath: '/products'
+      preLoaderRoute: typeof ProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payments': {
+      id: '/payments'
+      path: '/payments'
+      fullPath: '/payments'
+      preLoaderRoute: typeof PaymentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inbox': {
+      id: '/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof InboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/automations': {
+      id: '/automations'
+      path: '/automations'
+      fullPath: '/automations'
+      preLoaderRoute: typeof AutomationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analytics': {
+      id: '/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-assistant': {
+      id: '/ai-assistant'
+      path: '/ai-assistant'
+      fullPath: '/ai-assistant'
+      preLoaderRoute: typeof AiAssistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +376,87 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/quotations/': {
+      id: '/quotations/'
+      path: '/quotations'
+      fullPath: '/quotations/'
+      preLoaderRoute: typeof QuotationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders/': {
+      id: '/orders/'
+      path: '/orders'
+      fullPath: '/orders/'
+      preLoaderRoute: typeof OrdersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoices/': {
+      id: '/invoices/'
+      path: '/invoices'
+      fullPath: '/invoices/'
+      preLoaderRoute: typeof InvoicesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customers/': {
+      id: '/customers/'
+      path: '/customers'
+      fullPath: '/customers/'
+      preLoaderRoute: typeof CustomersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quotations/$id': {
+      id: '/quotations/$id'
+      path: '/quotations/$id'
+      fullPath: '/quotations/$id'
+      preLoaderRoute: typeof QuotationsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders/$id': {
+      id: '/orders/$id'
+      path: '/orders/$id'
+      fullPath: '/orders/$id'
+      preLoaderRoute: typeof OrdersIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoices/$id': {
+      id: '/invoices/$id'
+      path: '/invoices/$id'
+      fullPath: '/invoices/$id'
+      preLoaderRoute: typeof InvoicesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customers/$id': {
+      id: '/customers/$id'
+      path: '/customers/$id'
+      fullPath: '/customers/$id'
+      preLoaderRoute: typeof CustomersIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AiAssistantRoute: AiAssistantRoute,
+  AnalyticsRoute: AnalyticsRoute,
+  AutomationsRoute: AutomationsRoute,
+  DashboardRoute: DashboardRoute,
+  DemoRoute: DemoRoute,
+  InboxRoute: InboxRoute,
+  LoginRoute: LoginRoute,
+  PaymentsRoute: PaymentsRoute,
+  ProductsRoute: ProductsRoute,
+  SettingsRoute: SettingsRoute,
+  TeamRoute: TeamRoute,
+  CustomersIdRoute: CustomersIdRoute,
+  InvoicesIdRoute: InvoicesIdRoute,
+  OrdersIdRoute: OrdersIdRoute,
+  QuotationsIdRoute: QuotationsIdRoute,
+  CustomersIndexRoute: CustomersIndexRoute,
+  InvoicesIndexRoute: InvoicesIndexRoute,
+  OrdersIndexRoute: OrdersIndexRoute,
+  QuotationsIndexRoute: QuotationsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
