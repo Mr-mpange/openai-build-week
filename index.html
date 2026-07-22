@@ -10,35 +10,15 @@
     />
     <link rel="icon" href="%BASE_URL%favicon.ico" />
     <script>
-      // Receive redirect from 404.html and restore the original URL so the SPA router works.
+      // Restore the original URL saved by 404.html before the SPA router boots.
       (function () {
-        var redirect = sessionStorage.redirect;
-        delete sessionStorage.redirect;
-        if (redirect && redirect !== location.href) {
-          history.replaceState(null, null, redirect);
-        }
-        // Also handle the ?p= query param approach
-        var search = window.location.search;
-        if (search.slice(1, 3) === "p=") {
-          var decoded = search
-            .slice(1)
-            .split("&")
-            .reduce(function (acc, cur) {
-              var parts = cur.split("=");
-              acc[parts[0]] = parts
-                .slice(1)
-                .join("=")
-                .replace(/~and~/g, "&");
-              return acc;
-            }, {});
-          window.history.replaceState(
-            null,
-            null,
-            window.location.pathname.slice(0, -1) +
-              (decoded.p || "") +
-              (decoded.q ? "?" + decoded.q : "") +
-              window.location.hash
-          );
+        var redirect = sessionStorage.getItem("spa_redirect");
+        if (redirect) {
+          sessionStorage.removeItem("spa_redirect");
+          // Only restore if it's a different path (avoids infinite loop)
+          if (redirect !== window.location.href) {
+            window.history.replaceState(null, null, redirect);
+          }
         }
       })();
     </script>
