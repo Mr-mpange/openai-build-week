@@ -31,7 +31,7 @@ const methods: PaymentMethod[] = ["M-Pesa", "Airtel Money", "Mixx by Yas", "Bank
 
 function InvDetail() {
   const { id } = Route.useParams();
-  const { invoices, customers, payments, recordPayment } = useWorkspaceStore();
+  const { invoices, customers, payments, recordPayment, updateInvoicePaymentLink } = useWorkspaceStore();
   const inv = invoices.find((x) => x.id === id);
   const [open, setOpen] = useState(false);
   const [linkBusy, setLinkBusy] = useState(false);
@@ -59,6 +59,11 @@ function InvDetail() {
         toast.error(result.error);
         return;
       }
+      updateInvoicePaymentLink(inv.id, {
+        paymentLinkUrl: result.invoice.paymentLinkUrl,
+        paymentProvider: result.invoice.paymentProvider,
+        paymentLinkStatus: result.invoice.paymentLinkStatus,
+      });
       toast.success("Snippe payment link created");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to create payment link");

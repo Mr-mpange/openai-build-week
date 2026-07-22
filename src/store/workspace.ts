@@ -64,6 +64,7 @@ interface WorkspaceState {
 
   createInvoice: (i: Omit<Invoice, "id" | "number" | "createdAt" | "payments">) => Invoice;
   recordPayment: (invoiceId: string, amount: number, method: PaymentMethod) => Payment;
+  updateInvoicePaymentLink: (invoiceId: string, patch: Pick<Invoice, "paymentLinkUrl" | "paymentProvider" | "paymentLinkStatus">) => void;
 
   addProduct: (p: Omit<Product, "id">) => Product;
   updateProduct: (id: string, patch: Partial<Product>) => void;
@@ -281,6 +282,11 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         get().addActivity({ actor: "You", message: `Recorded ${method} payment ${pay.reference}`, kind: "payment" });
         void sync({ type: "invoice.pay", payload: { invoiceId, amount, method } });
         return pay;
+      },
+      updateInvoicePaymentLink: (invoiceId, patch) => {
+        set((s) => ({
+          invoices: s.invoices.map((inv) => (inv.id === invoiceId ? { ...inv, ...patch } : inv)),
+        }));
       },
 
       addProduct: (p) => {
