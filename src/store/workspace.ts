@@ -25,7 +25,6 @@ import {
   type Quotation,
   type TeamMember,
 } from "../data/backend-data";
-import { api } from "@/lib/api";
 import type { ApiAction } from "@/lib/backend-types";
 
 // Deep clone helpers so we can restore fixtures on reset
@@ -121,11 +120,9 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
       login: () => {
         set({ isAuthed: true });
-        void api.login("demo@biasharasauti.com", "Demo1234").catch((error) => console.error("login sync failed", error));
       },
       logout: () => {
         set({ isAuthed: false });
-        void api.logout().catch((error) => console.error("logout sync failed", error));
       },
       setWorkflowStep: (n) => set({ workflowStep: n }),
 
