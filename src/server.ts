@@ -162,9 +162,36 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
 async function handleAi(body: AiRequest, env: unknown): Promise<AiResponse> {
   const apiKey = getApiKey(env);
   if (!apiKey) {
-    return fallbackAi(body);
+    return handleGeminiFallback(body, env);
   }
   const client = new OpenAI({ apiKey });
+  try {
+    return await runOpenAi(client, body);
+  } catch (error) {
+    if (shouldFallBackToGemini(error)) {
+      console.warn("OpenAI request failed; falling back to Gemini", error);
+      return await handleGeminiFallback(body, env);
+    }
+    throw error;
+  }
+}
+
+function getApiKey(env: unknown): string | undefined {
+  if (!env || typeof env !== "object") return process.env.OPENAI_API_KEY;
+  const value = (env as Record<string, unknown>).OPENAI_API_KEY;
+  if (typeof value === "string" && value.trim()) return value;
+  return process.env.OPENAI_API_KEY;
+}
+
+function getGeminiApiKey(env: unknown): string | undefined {
+  if (!env || typeof env !== "object") return process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY;
+  const record = env as Record<string, unknown>;
+  const value = record.GEMINI_API_KEY ?? record.GOOGLE_API_KEY;
+  if (typeof value === "string" && value.trim()) return value;
+  return process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY;
+}
+
+async function runOpenAi(client: OpenAI, body: AiRequest): Promise<AiResponse> {
   if (body.mode === "transcribe") {
     const response = await client.responses.create({
       model: "gpt-5.6-sol",
@@ -197,11 +224,71 @@ async function handleAi(body: AiRequest, env: unknown): Promise<AiResponse> {
   return { ok: true, text: response.output_text || "" };
 }
 
-function getApiKey(env: unknown): string | undefined {
-  if (!env || typeof env !== "object") return process.env.OPENAI_API_KEY;
-  const value = (env as Record<string, unknown>).OPENAI_API_KEY;
-  if (typeof value === "string" && value.trim()) return value;
-  return process.env.OPENAI_API_KEY;
+async function handleGeminiFallback(body: AiRequest, env: unknown): Promise<AiResponse> {
+  const apiKey = getGeminiApiKey(env);
+  if (!apiKey) return fallbackAi(body);
+
+  const systemPrompt =
+    body.mode === "transcribe"
+      ? "You extract structured business details from short Swahili or English voice note transcripts. Return compact JSON with transcript, language, confidence, intent, products, deliveryLocation, deliveryDate."
+      : "You are Sauti, a business assistant for African SMEs. Keep answers concise, practical, and in plain English or Swahili as appropriate.";
+  const userPrompt =
+    body.mode === "transcribe"
+      ? body.prompt ?? "Nahitaji crate kumi za maji kwa ajili ya event ya Jumamosi. Delivery iwe Sinza."
+      : body.prompt;
+
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-goog-api-key": apiKey,
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: systemPrompt }],
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: userPrompt }],
+        },
+      ],
+      generationConfig: body.mode === "transcribe" ? { responseMimeType: "application/json" } : undefined,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini request failed: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json() as {
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{ text?: string }>;
+      };
+    }>;
+  };
+  const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() ?? "";
+  if (!text) return fallbackAi(body);
+
+  if (body.mode === "transcribe") {
+    try {
+      const parsed = JSON.parse(text) as AiResponse;
+      if (parsed.ok === true && "transcript" in parsed) return parsed;
+    } catch {
+      return fallbackAi(body);
+    }
+    return fallbackAi(body);
+  }
+
+  return { ok: true, text };
+}
+
+function shouldFallBackToGemini(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return message.includes("429") || message.includes("quota") || message.includes("billing") || message.includes("insufficient_quota");
 }
 
 function fallbackAi(body: AiRequest): AiResponse {
