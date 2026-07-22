@@ -192,14 +192,14 @@ function getGeminiApiKey(env: unknown): string | undefined {
 }
 
 async function runOpenAi(client: OpenAI, body: AiRequest): Promise<AiResponse> {
+  const systemPrompt = body.mode === "transcribe" ? transcribeSystemPrompt() : businessSystemPrompt();
   if (body.mode === "transcribe") {
     const response = await client.responses.create({
       model: "gpt-5.6-sol",
       input: [
         {
           role: "system",
-          content:
-            "You extract structured business details from short Swahili or English voice note transcripts. Return compact JSON with transcript, language, confidence, intent, products, deliveryLocation, deliveryDate.",
+          content: systemPrompt,
         },
         {
           role: "user",
@@ -215,8 +215,7 @@ async function runOpenAi(client: OpenAI, body: AiRequest): Promise<AiResponse> {
     input: [
       {
         role: "system",
-        content:
-          "You are Sauti, a business assistant for African SMEs. Keep answers concise, practical, and in plain English or Swahili as appropriate.",
+        content: systemPrompt,
       },
       { role: "user", content: body.prompt },
     ],
@@ -228,10 +227,7 @@ async function handleGeminiFallback(body: AiRequest, env: unknown): Promise<AiRe
   const apiKey = getGeminiApiKey(env);
   if (!apiKey) return fallbackAi(body);
 
-  const systemPrompt =
-    body.mode === "transcribe"
-      ? "You extract structured business details from short Swahili or English voice note transcripts. Return compact JSON with transcript, language, confidence, intent, products, deliveryLocation, deliveryDate."
-      : "You are Sauti, a business assistant for African SMEs. Keep answers concise, practical, and in plain English or Swahili as appropriate.";
+  const systemPrompt = body.mode === "transcribe" ? transcribeSystemPrompt() : businessSystemPrompt();
   const userPrompt =
     body.mode === "transcribe"
       ? body.prompt ?? "Nahitaji crate kumi za maji kwa ajili ya event ya Jumamosi. Delivery iwe Sinza."
@@ -283,6 +279,25 @@ async function handleGeminiFallback(body: AiRequest, env: unknown): Promise<AiRe
   }
 
   return { ok: true, text };
+}
+
+function businessSystemPrompt(): string {
+  return [
+    "You are Sauti, an AI assistant for this business management system.",
+    "Only answer about the app and business operations: customers, orders, quotations, invoices, payments, products, delivery, team, automations, workflow, inbox, and analytics.",
+    "If the user asks about anything outside this business workflow, refuse briefly and redirect them back to a supported business task.",
+    "Keep responses concise, practical, and action-oriented.",
+    "Use plain English or Swahili based on the user's language.",
+    "Do not discuss unrelated general knowledge, entertainment, politics, coding, or personal advice unless it directly supports the business workflow.",
+  ].join(" ");
+}
+
+function transcribeSystemPrompt(): string {
+  return [
+    "You extract structured business details from short Swahili or English voice note transcripts for this business system.",
+    "Return compact JSON only with transcript, language, confidence, intent, products, deliveryLocation, and deliveryDate.",
+    "Do not add extra commentary.",
+  ].join(" ");
 }
 
 function shouldFallBackToGemini(error: unknown): boolean {
