@@ -25,7 +25,11 @@ export type AppState = {
   team: TeamMember[];
   automations: Automation[];
   activity: ActivityLog[];
+  integrations: Record<IntegrationKey, IntegrationStatus>;
 };
+
+export type IntegrationKey = "openai" | "gemini" | "snippe" | "email" | "sms" | "whatsapp" | "mobileMoney";
+export type IntegrationStatus = "configured" | "missing-key" | "needs-webhook" | "live-verified" | "not-configured";
 
 export type LoginResponse = { ok: true; user: { name: string; email: string }; token: string } | { ok: false; error: string };
 

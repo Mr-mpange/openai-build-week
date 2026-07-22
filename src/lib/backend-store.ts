@@ -27,6 +27,7 @@ import {
   type TeamMember,
 } from "@/data/backend-data";
 import type { AppState, AddAutomationInput, AddCustomerInput, AddInvoiceInput, AddMemberInput, AddOrderInput, AddProductInput, AddQuotationInput } from "./backend-types";
+import type { IntegrationStatus } from "./backend-types";
 
 const DB_DIR = path.join(process.cwd(), ".data");
 const DB_FILE = path.join(DB_DIR, "biasharasauti-db.json");
@@ -44,6 +45,7 @@ const baseState = (): AppState => ({
   team: clone(teamData),
   automations: clone(automationsData),
   activity: clone(activityLogsData),
+  integrations: detectIntegrations(),
 });
 
 type DbFile = AppState & { version: 1 };
@@ -98,7 +100,25 @@ export function publicState(db: DbFile): AppState {
     team: db.team,
     automations: db.automations,
     activity: db.activity,
+    integrations: detectIntegrations(),
   };
+}
+
+function detectIntegrations() {
+  const state = {
+    openai: process.env.OPENAI_API_KEY ? "configured" : "missing-key",
+    gemini: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY ? "configured" : "missing-key",
+    snippe: process.env.SNIPPE_API_KEY
+      ? process.env.SNIPPE_WEBHOOK_SECRET ? "live-verified" : "needs-webhook"
+      : "missing-key",
+    email: process.env.EMAIL_API_KEY || process.env.SMTP_HOST ? "configured" : "not-configured",
+    sms: process.env.SMS_API_KEY || process.env.SMS_GATEWAY_URL ? "configured" : "not-configured",
+    whatsapp: "configured",
+    mobileMoney: process.env.SNIPPE_API_KEY
+      ? process.env.SNIPPE_WEBHOOK_SECRET ? "live-verified" : "needs-webhook"
+      : "missing-key",
+  } as const satisfies Record<keyof AppState["integrations"], IntegrationStatus>;
+  return state;
 }
 
 export async function upsertMessage(conversationId: string, msg: Omit<Message, "id" | "at">) {
@@ -217,7 +237,7 @@ export async function recordPayment(invoiceId: string, amount: number, method: P
   db.customers = db.customers.map((c) => c.id === invoice.customerId ? { ...c, outstanding: Math.max(0, c.outstanding - amount), totalSpend: c.totalSpend + amount } : c);
   db.activity = [{ id: uid("al"), at: new Date().toISOString(), actor: "You", message: `Recorded ${method} payment ${pay.reference}`, kind: "payment" }, ...db.activity];
   await saveDb(db);
-  return { db: publicState(db), payment: pay };
+    return { db: publicState(db), payment: pay };
 }
 
 export async function attachInvoicePaymentLink(invoiceId: string, paymentLinkUrl: string) {

@@ -26,7 +26,7 @@ import {
   type TeamMember,
 } from "../data/backend-data";
 import { api } from "@/lib/api";
-import type { ApiAction } from "@/lib/backend-types";
+import type { ApiAction, AppState, IntegrationStatus } from "@/lib/backend-types";
 
 // Deep clone helpers so we can restore fixtures on reset
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
@@ -42,6 +42,7 @@ interface WorkspaceState {
   team: TeamMember[];
   automations: Automation[];
   activity: ActivityLog[];
+  integrations: Record<"openai" | "gemini" | "snippe" | "email" | "sms" | "whatsapp" | "mobileMoney", IntegrationStatus>;
   isAuthed: boolean;
   workflowStep: number;
 
@@ -82,7 +83,7 @@ interface WorkspaceState {
   reset: () => void;
 }
 
-const initial = () => ({
+const initial = (): Pick<WorkspaceState, "customers" | "products" | "orders" | "quotations" | "invoices" | "payments" | "conversations" | "team" | "automations" | "activity" | "integrations"> => ({
   customers: clone(customersData),
   products: clone(productsData),
   orders: clone(ordersData),
@@ -93,6 +94,15 @@ const initial = () => ({
   team: clone(teamData),
   automations: clone(automationsData),
   activity: clone(activityLogsData),
+  integrations: {
+    openai: "configured",
+    gemini: "configured",
+    snippe: "needs-webhook",
+    email: "not-configured",
+    sms: "not-configured",
+    whatsapp: "configured",
+    mobileMoney: "needs-webhook",
+  } satisfies AppState["integrations"],
 });
 
 const nextNum = (list: { number?: string }[], prefix: string) => {

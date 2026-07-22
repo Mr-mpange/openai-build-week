@@ -1,5 +1,6 @@
 import "./lib/error-capture";
 
+import crypto from "node:crypto";
 import OpenAI from "openai";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
@@ -78,6 +79,7 @@ function corsHeaders(request: Request): Headers {
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers": "content-type",
     "access-control-expose-headers": "set-cookie",
+    "access-control-allow-credentials": "true",
     vary: "origin",
   });
   if (origin) {
@@ -157,12 +159,19 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
       return withCors(request, Response.json({ ok: true, invoice: result.invoice }));
     }
     if (request.method === "POST" && url.pathname === "/api/webhooks/snippe") {
-      const payload = await request.json() as { invoiceId?: string; amount?: number; reference?: string };
-      if (!payload.invoiceId || !payload.amount || !payload.reference) {
-        return withCors(request, Response.json({ ok: false, error: "invoiceId, amount, and reference are required" }, { status: 400 }));
+      const rawBody = await request.text();
+      const event = verifySnippeWebhook(request, rawBody, env);
+      if (event.type === "payment.completed") {
+        const invoiceId = String(event.data?.metadata?.invoice_id ?? event.data?.metadata?.order_id ?? event.data?.reference ?? "");
+        const amount = Number(event.data?.amount?.value ?? 0);
+        const reference = String(event.data?.reference ?? event.id ?? "");
+        if (!invoiceId || !amount || !reference) {
+          return withCors(request, Response.json({ ok: false, error: "invoiceId, amount, and reference are required" }, { status: 400 }));
+        }
+        const result = await markInvoicePaidByWebhook(invoiceId, amount, reference, "snippe");
+        return withCors(request, Response.json({ ok: true, payment: result.payment }));
       }
-      const result = await markInvoicePaidByWebhook(payload.invoiceId, payload.amount, payload.reference, "snippe");
-      return withCors(request, Response.json({ ok: true, payment: result.payment }));
+      return withCors(request, Response.json({ ok: true }));
     }
     if (request.method === "POST" && url.pathname === "/api/ai") {
       const body = await request.json() as AiRequest;
@@ -300,12 +309,13 @@ async function handleGeminiFallback(body: AiRequest, env: unknown): Promise<AiRe
 
 function businessSystemPrompt(): string {
   return [
-    "You are Sauti, an AI assistant for this business management system.",
-    "Only answer about the app and business operations: customers, orders, quotations, invoices, payments, products, delivery, team, automations, workflow, inbox, and analytics.",
-    "If the user asks about anything outside this business workflow, refuse briefly and redirect them back to a supported business task.",
+    "You are Sauti, a sales and operations assistant for an African SME.",
+    "Only answer about business operations: customers, orders, quotations, invoices, payments, products, delivery, team, automations, workflow, inbox, and analytics.",
+    "If the user wants to buy something, help them as a sales assistant: ask for the product, quantity, delivery location, and deadline if missing. Offer the next business step instead of giving a generic refusal.",
+    "If the request is outside the business workflow, refuse briefly and redirect the user to a supported business task.",
     "Keep responses concise, practical, and action-oriented.",
-    "Use plain English or Swahili based on the user's language.",
-    "Do not discuss unrelated general knowledge, entertainment, politics, coding, or personal advice unless it directly supports the business workflow.",
+    "Use the user's language. If they write in Swahili, answer in Swahili.",
+    "Never answer with a generic 'I can help with' message. Always give a specific next step.",
   ].join(" ");
 }
 
@@ -366,6 +376,56 @@ function getSnippeBaseUrl(env: unknown): string {
     : undefined;
   const value = typeof fromEnv === "string" && fromEnv.trim() ? fromEnv : process.env.SNIPPE_API_BASE_URL;
   return (value?.trim() || "https://api.snippe.sh").replace(/\/$/, "");
+}
+
+type SnippeWebhookEvent = {
+  id?: string;
+  type?: string;
+  api_version?: string;
+  created_at?: string;
+  event?: string;
+  data?: {
+    reference?: string;
+    external_reference?: string;
+    amount?: { value?: number; currency?: string };
+    metadata?: { invoice_id?: string; order_id?: string; url_metadata?: Record<string, unknown> };
+  };
+  reference?: string;
+  amount?: { value?: number; currency?: string };
+  metadata?: { invoice_id?: string; order_id?: string };
+};
+
+function verifySnippeWebhook(request: Request, rawBody: string, env: unknown): SnippeWebhookEvent {
+  const signingKey = getSnippeWebhookSecret(env);
+  const timestamp = request.headers.get("x-webhook-timestamp") ?? "";
+  const signature = request.headers.get("x-webhook-signature") ?? "";
+
+  if (signingKey) {
+    const eventTime = Number.parseInt(timestamp, 10);
+    if (!Number.isFinite(eventTime) || Math.abs(Math.floor(Date.now() / 1000) - eventTime) > 300) {
+      throw new Error("Webhook timestamp too old");
+    }
+    const message = `${timestamp}.${rawBody}`;
+    const expected = crypto.createHmac("sha256", signingKey).update(message).digest("hex");
+    if (!safeEqualHex(signature, expected)) {
+      throw new Error("Invalid webhook signature");
+    }
+  }
+
+  const parsed = JSON.parse(rawBody) as SnippeWebhookEvent;
+  return parsed;
+}
+
+function safeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+function getSnippeWebhookSecret(env: unknown): string | undefined {
+  if (!env || typeof env !== "object") return process.env.SNIPPE_WEBHOOK_SECRET;
+  const value = (env as Record<string, unknown>).SNIPPE_WEBHOOK_SECRET;
+  if (typeof value === "string" && value.trim()) return value;
+  return process.env.SNIPPE_WEBHOOK_SECRET;
 }
 
 function fallbackAi(body: AiRequest): AiResponse {

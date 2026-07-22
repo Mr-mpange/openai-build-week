@@ -10,6 +10,7 @@ import { Radio, Bot, Phone, CreditCard, Mail, MessageSquare, ShieldCheck } from 
 import { useState } from "react";
 import { toast } from "sonner";
 import { useWorkspaceStore } from "@/store/workspace";
+import type { AppState, IntegrationStatus, IntegrationKey } from "@/lib/backend-types";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -24,13 +25,34 @@ export const Route = createFileRoute("/settings")({
 });
 
 const integrations = [
-  { name: "WhatsApp Business", icon: MessageSquare, status: "Connected", tone: "success" as const, desc: "Send and receive customer messages." },
-  { name: "OpenAI", icon: Bot, status: "Connected", tone: "info" as const, desc: "Powers AI transcription and drafting." },
-  { name: "Snippe", icon: Phone, status: "Not connected", tone: "default" as const, desc: "Call recording and telephony." },
-  { name: "Mobile Money", icon: CreditCard, status: "Connected", tone: "success" as const, desc: "M-Pesa, Airtel Money, Mixx by Yas." },
-  { name: "Email", icon: Mail, status: "Configuration required", tone: "warning" as const, desc: "Send invoices & reminders via email." },
-  { name: "SMS Gateway", icon: MessageSquare, status: "Not connected", tone: "default" as const, desc: "Fallback for delivery notifications." },
-];
+  { key: "whatsapp", name: "WhatsApp Business", icon: MessageSquare, desc: "Send and receive customer messages." },
+  { key: "openai", name: "OpenAI", icon: Bot, desc: "Primary AI transcription and drafting." },
+  { key: "gemini", name: "Gemini", icon: Bot, desc: "AI fallback when OpenAI is unavailable." },
+  { key: "snippe", name: "Snippe", icon: Phone, desc: "Call recording and telephony." },
+  { key: "mobileMoney", name: "Mobile Money", icon: CreditCard, desc: "M-Pesa, Airtel Money, Mixx by Yas." },
+  { key: "email", name: "Email", icon: Mail, desc: "Send invoices & reminders via email." },
+  { key: "sms", name: "SMS Gateway", icon: MessageSquare, desc: "Fallback for delivery notifications." },
+] satisfies Array<{
+  key: IntegrationKey;
+  name: string;
+  icon: typeof MessageSquare;
+  desc: string;
+}>;
+
+function labelFor(status: IntegrationStatus) {
+  switch (status) {
+    case "configured":
+      return { label: "Configured", tone: "success" as const };
+    case "live-verified":
+      return { label: "Live verified", tone: "success" as const };
+    case "needs-webhook":
+      return { label: "Needs webhook", tone: "warning" as const };
+    case "missing-key":
+      return { label: "Missing key", tone: "danger" as const };
+    case "not-configured":
+      return { label: "Not configured", tone: "default" as const };
+  }
+}
 
 function Settings() {
   const [profile, setProfile] = useState({
@@ -44,6 +66,7 @@ function Settings() {
   });
   const [notif, setNotif] = useState({ newMessage: true, newOrder: true, paymentReceived: true, dailySummary: false });
   const reset = useWorkspaceStore((s) => s.reset);
+  const integrationsState = useWorkspaceStore((s) => s.integrations);
 
   return (
     <AppLayout title="Settings" subtitle="Configure your workspace">
@@ -108,7 +131,10 @@ function Settings() {
                     <div className="h-10 w-10 shrink-0 rounded-xl bg-primary/10 ring-1 ring-primary/20 grid place-items-center"><it.icon className="h-5 w-5 text-primary" /></div>
                     <div className="min-w-0"><div className="font-medium">{it.name}</div><div className="text-xs text-muted-foreground">{it.desc}</div></div>
                   </div>
-                  <StatusPill status={it.status} tone={it.tone} />
+                  <StatusPill
+                    status={labelFor(integrationsState[it.key]).label}
+                    tone={labelFor(integrationsState[it.key]).tone}
+                  />
                 </div>
                 <div className="mt-4 flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => toast.info(`${it.name} settings opened`)}>Configure</Button>
