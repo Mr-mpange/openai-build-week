@@ -28,7 +28,7 @@ import {
 import { api } from "@/lib/api";
 import type { ApiAction, AppState, IntegrationStatus } from "@/lib/backend-types";
 
-// Deep clone helpers so we can restore fixtures on reset
+// Deep clone helpers so we can restore the live workspace baseline on reset
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 
 interface WorkspaceState {
@@ -354,7 +354,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
     }),
     {
       name: "biasharasauti-workspace",
-      // don't persist fixtures too aggressively — keep reset predictable
+      // don't persist the seeded workspace too aggressively — keep reset predictable
       partialize: (s) => ({
         isAuthed: s.isAuthed,
         workflowStep: s.workflowStep,
@@ -376,7 +376,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 export async function hydrateWorkspace() {
   if (typeof window === "undefined") return;
   // Skip bootstrap when no backend URL is configured (e.g. static GitHub Pages deploy).
-  // The Zustand store is seeded with local fixture data and persisted in localStorage.
+  // The Zustand store is seeded locally and persisted in localStorage.
   const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
   if (!apiBase) return;
   try {

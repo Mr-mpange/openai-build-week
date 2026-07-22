@@ -7,6 +7,7 @@ BiasharaSauti is an AI business assistant for African SMEs. It turns WhatsApp ch
 - Frontend: static React app built with Vite and deployed to GitHub Pages
 - Backend: Node API deployed to Google Cloud Run
 - API base URL: configured in the frontend through `VITE_API_BASE_URL`
+- Default backend URL: `https://biashara-sauti-api-840359086901.us-central1.run.app`
 
 ## What’s Included
 
@@ -14,6 +15,7 @@ BiasharaSauti is an AI business assistant for African SMEs. It turns WhatsApp ch
 - Dashboard with revenue, orders, payments, and conversation analytics
 - Shared inbox for customer messages
 - AI assistant route for productivity prompts and voice transcription
+- Invite-only access flow with a `/register` route that redirects users to request access
 - Customers, orders, quotations, invoices, payments, products, analytics, automations, team, workflow, and settings screens
 
 ## Tech Stack
@@ -25,7 +27,7 @@ BiasharaSauti is an AI business assistant for African SMEs. It turns WhatsApp ch
 - TanStack Query
 - Recharts
 - Sonner
-- OpenAI API for AI features
+- OpenAI API for AI features, with Gemini fallback and business-query shortcuts in the backend
 
 ## Development
 
@@ -53,6 +55,12 @@ Set the frontend API URL when the backend is running on another host:
 VITE_API_BASE_URL=http://localhost:8080 npm run dev
 ```
 
+If you want the frontend to use the Cloud Run backend locally, point the env var to the deployed URL:
+
+```sh
+VITE_API_BASE_URL=https://biashara-sauti-api-840359086901.us-central1.run.app npm run dev
+```
+
 ## Scripts
 
 - `npm run dev` - start the frontend development server
@@ -71,6 +79,8 @@ Push to `main` to trigger the GitHub Actions workflow at `.github/workflows/depl
 
 Before the workflow runs, set `VITE_API_BASE_URL` in the Pages build environment if you need the frontend to point to a deployed backend.
 
+The GitHub Pages site uses the `/openai-build-week/` base path.
+
 ### Google Cloud Run backend
 
 Deploy the backend with Cloud Run source deploy:
@@ -83,6 +93,8 @@ gcloud run deploy biashara-sauti-api \
 ```
 
 Set `OPENAI_API_KEY` as a Cloud Run environment variable if you want live AI responses.
+Set `GEMINI_API_KEY` as a fallback key if OpenAI is unavailable.
+Set `SNIPPE_API_KEY` and `SNIPPE_WEBHOOK_SECRET` to enable live mobile-money payment links and webhook verification.
 
 ## Structure
 

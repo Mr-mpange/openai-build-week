@@ -31,7 +31,7 @@ type Msg = { id: string; from: "user" | "ai"; body: string };
 
 function Assistant() {
   const [messages, setMessages] = useState<Msg[]>([
-    { id: "0", from: "ai", body: "Habari! Naitwa Sauti, msaidizi wako wa AI. Uliza chochote kuhusu wateja, orders, quotations, invoices au payments." },
+    { id: "0", from: "ai", body: "Niko live kwenye backend ya biashara yako. Uliza kuhusu bidhaa, oda ya mwisho, quotations, invoices, payments, au follow-up za wateja." },
   ]);
   const [text, setText] = useState("");
   const [streaming, setStreaming] = useState(false);

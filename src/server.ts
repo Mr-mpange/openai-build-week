@@ -186,6 +186,10 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
 }
 
 async function handleAi(body: AiRequest, env: unknown): Promise<AiResponse> {
+  if (body.mode === "chat") {
+    const business = await handleBusinessQuery(body.prompt);
+    if (business) return business;
+  }
   const apiKey = getApiKey(env);
   if (!apiKey) {
     return handleGeminiFallback(body, env);
@@ -200,6 +204,62 @@ async function handleAi(body: AiRequest, env: unknown): Promise<AiResponse> {
     }
     throw error;
   }
+}
+
+async function handleBusinessQuery(prompt: string): Promise<AiResponse | null> {
+  const text = prompt.trim().toLowerCase();
+  if (!text) return null;
+  const db = await loadDb();
+  const latestOrder = db.orders[0];
+  const latestInvoice = db.invoices[0];
+  const topProducts = [...db.products].sort((a, b) => b.stock - a.stock).slice(0, 5);
+  const queryWantsProducts = /(bidhaa|product|products|nunua|purchase|buy)/i.test(prompt);
+  const queryWantsLatestOrder = /(oda ya mwisho|latest order|last order|mwisho wa oda|oda ya mwisho ni gani|nione oda ya mwisho)/i.test(prompt);
+  const queryWantsInvoices = /(invoice|invoices|ankara|bills)/i.test(prompt);
+  const queryWantsPayments = /(payment|payments|malipo|lipa)/i.test(prompt);
+
+  if (queryWantsLatestOrder && latestOrder) {
+    const customer = db.customers.find((c) => c.id === latestOrder.customerId);
+    return {
+      ok: true,
+      text: [
+        `Oda ya mwisho ni ${latestOrder.number}.`,
+        `Mteja: ${customer?.name ?? "Unknown"}${customer?.business ? ` (${customer.business})` : ""}.`,
+        `Kiasi: TZS ${latestOrder.total.toLocaleString("en-US")}.`,
+        `Hali: ${latestOrder.status}.`,
+        `Delivery: ${latestOrder.deliveryLocation}.`,
+      ].join(" "),
+    };
+  }
+
+  if (queryWantsProducts) {
+    const productLines = topProducts.map((p) => `- ${p.name} (${p.sku}) TZS ${p.price.toLocaleString("en-US")} · stock ${p.stock}`);
+    return {
+      ok: true,
+      text: [
+        "Ndiyo, naweza kukusaidia kununua bidhaa.",
+        "Niambie bidhaa unayotaka, kiasi, eneo la delivery, na tarehe ya delivery.",
+        "Bidhaa zinazopatikana sasa:",
+        ...productLines,
+      ].join("\n"),
+    };
+  }
+
+  if (queryWantsInvoices && latestInvoice) {
+    return {
+      ok: true,
+      text: `Ankara ya mwisho ni ${latestInvoice.number} kwa TZS ${latestInvoice.total.toLocaleString("en-US")} na hali yake ni ${latestInvoice.status}.`,
+    };
+  }
+
+  if (queryWantsPayments && latestInvoice) {
+    return {
+      ok: true,
+      text: `Malipo ya mwisho yanahusiana na ${latestInvoice.number}. Hali ya ankara hiyo ni ${latestInvoice.status} na salio ni TZS ${(latestInvoice.total - latestInvoice.paid).toLocaleString("en-US")}.`,
+    };
+  }
+
+  return null;
 }
 
 function getApiKey(env: unknown): string | undefined {

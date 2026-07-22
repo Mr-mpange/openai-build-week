@@ -116,7 +116,7 @@ function LoginPage() {
           </form>
 
           <p className="mt-6 text-xs text-muted-foreground text-center">
-            No account? <Link to="/dashboard" className="text-primary hover:underline">Explore the dashboard</Link>
+            No account? <Link to="/register" className="text-primary hover:underline">Request access</Link>
           </p>
         </div>
       </div>

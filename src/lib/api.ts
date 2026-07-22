@@ -1,6 +1,6 @@
 import type { AiRequest, AiResponse, AppState, ApiAction, AuthUser, InvoicePaymentLinkResponse, LoginResponse } from "./backend-types";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+const API_BASE_URL = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "https://biashara-sauti-api-840359086901.us-central1.run.app").replace(/\/$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const hasBody = init?.body !== undefined;
