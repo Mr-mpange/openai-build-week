@@ -105,6 +105,8 @@ const nextNum = (list: { number?: string }[], prefix: string) => {
 const uid = (p: string) => `${p}-${Math.random().toString(36).slice(2, 8)}`;
 
 async function sync(action: ApiAction) {
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
+  if (!apiBase) return;
   try {
     await api.action(action);
   } catch (error) {
@@ -357,6 +359,10 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
 export async function hydrateWorkspace() {
   if (typeof window === "undefined") return;
+  // Skip bootstrap when no backend URL is configured (e.g. static GitHub Pages deploy).
+  // The Zustand store is seeded with local fixture data and persisted in localStorage.
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
+  if (!apiBase) return;
   try {
     const state = await api.bootstrap();
     useWorkspaceStore.setState((s) => ({ ...s, ...state }));

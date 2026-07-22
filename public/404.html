@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BiasharaSauti</title>
+    <script>
+      // GitHub Pages SPA redirect: store the full path and redirect to index.html
+      // so TanStack Router can handle the route on the client side.
+      var l = window.location;
+      var segmentCount = 1; // number of path segments in the repo base, e.g. /openai-build-week/ = 1
+      l.replace(
+        l.protocol +
+          "//" +
+          l.hostname +
+          (l.port ? ":" + l.port : "") +
+          l.pathname
+            .split("/")
+            .slice(0, 1 + segmentCount)
+            .join("/") +
+          "/?p=/" +
+          l.pathname
+            .split("/")
+            .slice(1 + segmentCount)
+            .join("/")
+            .replace(/&/g, "~and~") +
+          (l.search ? "&q=" + l.search.slice(1).replace(/&/g, "~and~") : "") +
+          l.hash
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
