@@ -3,10 +3,11 @@ import type { AiRequest, AiResponse, AppState, ApiAction, AuthUser, LoginRespons
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const hasBody = init?.body !== undefined;
   const res = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
     headers: {
-      "content-type": "application/json",
+      ...(hasBody ? { "content-type": "application/json" } : {}),
       ...(init?.headers ?? {}),
     },
     ...init,

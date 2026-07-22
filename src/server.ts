@@ -70,6 +70,31 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+function corsHeaders(request: Request): Headers {
+  const origin = request.headers.get("origin");
+  const headers = new Headers({
+    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-headers": "content-type",
+    "access-control-expose-headers": "set-cookie",
+    vary: "origin",
+  });
+  if (origin) {
+    headers.set("access-control-allow-origin", origin);
+  }
+  return headers;
+}
+
+function withCors(request: Request, response: Response): Response {
+  const headers = new Headers(response.headers);
+  const cors = corsHeaders(request);
+  cors.forEach((value, key) => headers.set(key, value));
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const url = new URL(request.url);
@@ -93,41 +118,44 @@ export default {
 async function handleApi(request: Request, env: unknown): Promise<Response> {
   const url = new URL(request.url);
   try {
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders(request) });
+    }
     if (request.method === "GET" && url.pathname === "/api/bootstrap") {
-      return Response.json(await bootstrapState());
+      return withCors(request, Response.json(await bootstrapState()));
     }
     if (request.method === "GET" && url.pathname === "/api/me") {
       const db = await loadDb();
       const session = readSession(request);
       const user = session ? { name: session.name, email: session.email } : null;
-      return Response.json({ user, workspace: db.team[0] ?? null });
+      return withCors(request, Response.json({ user, workspace: db.team[0] ?? null }));
     }
     if (request.method === "POST" && url.pathname === "/api/login") {
       const { email, password } = await request.json() as { email?: string; password?: string };
-      if (!email || !password) return Response.json({ ok: false, error: "Email and password are required" }, { status: 400 });
+      if (!email || !password) return withCors(request, Response.json({ ok: false, error: "Email and password are required" }, { status: 400 }));
       const headers = new Headers({ "content-type": "application/json" });
       headers.append("set-cookie", `bs_session=${Buffer.from(email ?? "").toString("base64")}; Path=/; HttpOnly; SameSite=Lax`);
-      return new Response(JSON.stringify({ ok: true, token: "session", user: { name: email.split("@")[0], email } }), { headers });
+      return withCors(request, new Response(JSON.stringify({ ok: true, token: "session", user: { name: email.split("@")[0], email } }), { headers }));
     }
     if (request.method === "POST" && url.pathname === "/api/logout") {
       const headers = new Headers({ "content-type": "application/json" });
       headers.append("set-cookie", "bs_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
-      return new Response(JSON.stringify({ ok: true }), { headers });
+      return withCors(request, new Response(JSON.stringify({ ok: true }), { headers }));
     }
     if (request.method === "POST" && url.pathname === "/api/action") {
       const action = await request.json() as ApiAction;
       const db = await applyAction(action);
-      return Response.json(db);
+      return withCors(request, Response.json(db));
     }
     if (request.method === "POST" && url.pathname === "/api/ai") {
       const body = await request.json() as AiRequest;
       const result = await handleAi(body, env);
-      return Response.json(result);
+      return withCors(request, Response.json(result));
     }
-    return new Response("Not found", { status: 404 });
+    return withCors(request, new Response("Not found", { status: 404 }));
   } catch (error) {
     console.error(error);
-    return Response.json({ error: error instanceof Error ? error.message : "Server error" }, { status: 500 });
+    return withCors(request, Response.json({ error: error instanceof Error ? error.message : "Server error" }, { status: 500 }));
   }
 }
 
