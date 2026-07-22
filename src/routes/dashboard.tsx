@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor, Avatar } from "@/components/layouts/AppLayout";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { TZS, shortTZS, fmtRelative } from "@/lib/format";
-import { revenueSeries } from "@/data/mock";
+import { revenueSeries } from "@/data/backend-data";
 import {
   TrendingUp, TrendingDown, MessageSquare, Bot, ArrowUpRight, Timer, Users,
   ShoppingCart, Receipt, CreditCard, FileText, AlertCircle, Sparkles,
@@ -53,7 +53,7 @@ function Stat({ label, value, hint, trend, icon: Icon, tone = "primary" }: { lab
 }
 
 function Dashboard() {
-  const { orders, invoices, payments, conversations, customers, activity, products } = useDemoStore();
+  const { orders, invoices, payments, conversations, customers, activity, products } = useWorkspaceStore();
 
   const monthlyRevenue = 4850000;
   const outstanding = invoices.filter((i) => i.status !== "paid" && i.status !== "cancelled").reduce((s, i) => s + (i.total - i.paid), 0);
@@ -64,7 +64,7 @@ function Dashboard() {
   const conversionRate = 34;
   const avgResponse = 6;
   const aiAssisted = 82;
-  const pendingQuotes = useDemoStore((s) => s.quotations.filter((q) => q.status === "sent" || q.status === "viewed").length);
+  const pendingQuotes = useWorkspaceStore((s) => s.quotations.filter((q) => q.status === "sent" || q.status === "viewed").length);
 
   const statusBreakdown = ["draft", "confirmed", "processing", "ready", "delivered", "cancelled"].map((st) => ({
     name: st,

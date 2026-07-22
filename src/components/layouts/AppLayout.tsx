@@ -5,7 +5,7 @@ import {
   Package, BarChart3, Zap, Bot, UserCog, Settings, PlayCircle,
   Menu, X, LogOut, Search, Bell, Radio,
 } from "lucide-react";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { initials } from "@/lib/format";
@@ -17,7 +17,7 @@ const navGroups: { label: string; items: { to: string; label: string; icon: Reac
       { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { to: "/inbox", label: "Inbox", icon: Inbox },
       { to: "/ai-assistant", label: "AI Assistant", icon: Bot },
-      { to: "/demo", label: "Guided Demo", icon: PlayCircle },
+      { to: "/workflow", label: "Guided Workflow", icon: PlayCircle },
     ],
   },
   {
@@ -62,8 +62,8 @@ function Logo({ compact = false }: { compact?: boolean }) {
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
-  const logout = useDemoStore((s) => s.logout);
-  const unread = useDemoStore((s) =>
+  const logout = useWorkspaceStore((s) => s.logout);
+  const unread = useWorkspaceStore((s) =>
     s.conversations.reduce((acc, c) => acc + c.unread, 0),
   );
 
@@ -114,7 +114,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium truncate">Grace Mollel</div>
-            <div className="text-xs text-muted-foreground truncate">Owner · Demo Mode</div>
+            <div className="text-xs text-muted-foreground truncate">Owner · Workspace</div>
           </div>
           <Button
             size="icon"

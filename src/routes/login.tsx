@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useDemoStore } from "@/store/demo";
-import { mockAuthService } from "@/services/mockServices";
+import { useWorkspaceStore } from "@/store/workspace";
+import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -35,16 +35,16 @@ function LoginPage() {
   const [pending, setPending] = useState(false);
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
-  const login = useDemoStore((s) => s.login);
+  const login = useWorkspaceStore((s) => s.login);
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues: { email: "demo@biasharasauti.com", password: "Demo1234", remember: true },
+    defaultValues: { email: "", password: "", remember: true },
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
     setPending(true);
-    const res = await mockAuthService.login(values.email, values.password);
+    const res = await api.login(values.email, values.password);
     setPending(false);
     if (!res.ok) {
       toast.error(res.error);
@@ -83,13 +83,7 @@ function LoginPage() {
             <div className="font-semibold">Biashara<span className="gradient-text">Sauti</span></div>
           </Link>
           <h1 className="text-2xl font-semibold tracking-tight">Sign in to your workspace</h1>
-          <p className="text-sm text-muted-foreground mt-1">Use the demo credentials below to explore.</p>
-
-          <div className="mt-4 rounded-lg bg-primary/10 ring-1 ring-primary/20 p-3 text-xs">
-            <div className="font-medium text-primary">Demo credentials</div>
-            <div className="text-muted-foreground">Email: <span className="text-foreground">demo@biasharasauti.com</span></div>
-            <div className="text-muted-foreground">Password: <span className="text-foreground">Demo1234</span></div>
-          </div>
+          <p className="text-sm text-muted-foreground mt-1">Use your workspace email and password to sign in.</p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div>
@@ -100,7 +94,7 @@ function LoginPage() {
             <div>
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <button type="button" onClick={() => toast.info("Reset link sent to your email (demo)")} className="text-xs text-primary hover:underline">Forgot password?</button>
+                <button type="button" onClick={() => toast.info("Reset link sent to your email")} className="text-xs text-primary hover:underline">Forgot password?</button>
               </div>
               <div className="relative">
                 <Input id="password" type={show ? "text" : "password"} autoComplete="current-password" {...form.register("password")} />
@@ -119,9 +113,6 @@ function LoginPage() {
               {pending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Signing in…</> : success ? <><CheckCircle2 className="h-4 w-4 mr-2" /> Success</> : <>Sign in <ArrowRight className="h-4 w-4 ml-1" /></>}
             </Button>
 
-            <Button type="button" variant="outline" className="w-full" onClick={() => { form.setValue("email", "demo@biasharasauti.com"); form.setValue("password", "Demo1234"); onSubmit(); }}>
-              Continue with Demo login
-            </Button>
           </form>
 
           <p className="mt-6 text-xs text-muted-foreground text-center">

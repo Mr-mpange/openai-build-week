@@ -2,8 +2,8 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { AppLayout, Avatar, StatusPill, toneFor } from "@/components/layouts/AppLayout";
 import {
   useCustomer, useCustomerConversations, useCustomerInvoices, useCustomerOrders,
-  useCustomerPayments, useCustomerQuotations, useDemoStore,
-} from "@/store/demo";
+  useCustomerPayments, useCustomerQuotations, useWorkspaceStore,
+} from "@/store/workspace";
 import { fmtDate, fmtRelative, TZS } from "@/lib/format";
 import { ArrowLeft, Mail, MapPin, Phone, Sparkles, Tag, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ function CustomerDetail() {
   const invoices = useCustomerInvoices(id);
   const payments = useCustomerPayments(id);
   const conversations = useCustomerConversations(id);
-  const team = useDemoStore((s) => s.team);
+  const team = useWorkspaceStore((s) => s.team);
 
   if (!c) {
     return (

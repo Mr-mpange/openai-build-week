@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor } from "@/components/layouts/AppLayout";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { fmtDate, fmtRelative, TZS } from "@/lib/format";
 import { ArrowLeft, Truck, CheckCircle2, Package, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { OrderStatus } from "@/data/mock";
+import type { OrderStatus } from "@/data/backend-data";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/orders/$id")({
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/orders/$id")({
 
 function OrderDetail() {
   const { id } = Route.useParams();
-  const { orders, customers, team, updateOrderStatus, assignOrder } = useDemoStore();
+  const { orders, customers, team, updateOrderStatus, assignOrder } = useWorkspaceStore();
   const o = orders.find((x) => x.id === id);
 
   if (!o) return <AppLayout title="Order not found"><div className="p-8 text-muted-foreground">Not found. <Link to="/orders" className="text-primary">Back</Link></div></AppLayout>;

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout, Avatar, StatusPill } from "@/components/layouts/AppLayout";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,7 @@ import {
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { TeamMember } from "@/data/mock";
+import type { TeamMember } from "@/data/backend-data";
 
 export const Route = createFileRoute("/team")({
   head: () => ({
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/team")({
 const roles: TeamMember["role"][] = ["Owner", "Administrator", "Sales", "Finance", "Support", "Viewer"];
 
 function Team() {
-  const { team, inviteMember } = useDemoStore();
+  const { team, inviteMember } = useWorkspaceStore();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<{ name: string; email: string; role: TeamMember["role"] }>({ name: "", email: "", role: "Sales" });
 

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layouts/AppLayout";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { fmtRelative } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/automations")({
 });
 
 function Automations() {
-  const { automations, toggleAutomation, runAutomation, addAutomation } = useDemoStore();
+  const { automations, toggleAutomation, runAutomation, addAutomation } = useWorkspaceStore();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", description: "", trigger: "", actions: "" });
 

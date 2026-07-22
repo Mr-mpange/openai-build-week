@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Bot, Send, Sparkles, User } from "lucide-react";
 import { useRef, useState } from "react";
-import { mockAiService } from "@/services/mockServices";
+import { aiService } from "@/services/backendServices";
 
 export const Route = createFileRoute("/ai-assistant")({
   head: () => ({
@@ -46,7 +46,7 @@ function Assistant() {
     const aid = `a${Date.now()}`;
     setMessages((m) => [...m, { id: aid, from: "ai", body: "" }]);
     let full = "";
-    for await (const chunk of mockAiService.stream(prompt)) {
+    for await (const chunk of aiService.stream(prompt)) {
       full += chunk;
       setMessages((m) => m.map((x) => (x.id === aid ? { ...x, body: full } : x)));
       requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior: "smooth" }));

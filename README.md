@@ -1,29 +1,94 @@
-# Welcome to your Lovable project
+# BiasharaSauti
 
-This project was built with [Lovable](https://lovable.dev).
+BiasharaSauti is an AI business assistant for African SMEs. It turns WhatsApp chats and voice notes into orders, quotations, invoices, payments, and follow-ups.
 
-## Build with Lovable
+## Architecture
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+- Frontend: static React app built with Vite and deployed to GitHub Pages
+- Backend: Node API deployed to Google Cloud Run
+- API base URL: configured in the frontend through `VITE_API_BASE_URL`
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+## What’s Included
+
+- Marketing landing page with product positioning and calls to action
+- Dashboard with revenue, orders, payments, and conversation analytics
+- Shared inbox for customer messages
+- AI assistant route for productivity prompts and voice transcription
+- Customers, orders, quotations, invoices, payments, products, analytics, automations, team, workflow, and settings screens
+
+## Tech Stack
+
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- TanStack Router
+- TanStack Query
+- Recharts
+- Sonner
+- OpenAI API for AI features
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Requirements:
+
+- Node.js 20+
+- npm
+
+Install and run the frontend locally:
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+npm install
 npm run dev
 ```
 
-## Built with
+Run the backend locally:
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+```sh
+npm run start
+```
+
+Set the frontend API URL when the backend is running on another host:
+
+```sh
+VITE_API_BASE_URL=http://localhost:8080 npm run dev
+```
+
+## Scripts
+
+- `npm run dev` - start the frontend development server
+- `npm run build` - create the production frontend build in `dist/`
+- `npm run preview` - preview the production frontend build
+- `npm run start` - start the backend API server
+- `npm run backend` - same as `npm run start`
+- `npm run lint` - run ESLint
+- `npm run format` - format the codebase with Prettier
+
+## Deployment
+
+### GitHub Pages frontend
+
+Push to `main` to trigger the GitHub Actions workflow at `.github/workflows/deploy-pages.yml`.
+
+Before the workflow runs, set `VITE_API_BASE_URL` in the Pages build environment if you need the frontend to point to a deployed backend.
+
+### Google Cloud Run backend
+
+Deploy the backend with Cloud Run source deploy:
+
+```sh
+gcloud run deploy biashara-sauti-api \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated
+```
+
+Set `OPENAI_API_KEY` as a Cloud Run environment variable if you want live AI responses.
+
+## Structure
+
+- `src/routes/` - file-based TanStack routes
+- `src/components/` - shared UI and layout components
+- `src/data/` - application data and TypeScript models
+- `src/store/` - local workspace state
+- `src/lib/` - shared utilities
+- `backend.ts` - Cloud Run entrypoint

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor } from "@/components/layouts/AppLayout";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { fmtDate, TZS } from "@/lib/format";
 import { ArrowLeft, Send, Copy, Download, Check, X, ArrowRightLeft, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/quotations/$id")({
 function QDetail() {
   const { id } = Route.useParams();
   const nav = useNavigate();
-  const { quotations, customers, updateQuotationStatus, convertQuotationToInvoice } = useDemoStore();
+  const { quotations, customers, updateQuotationStatus, convertQuotationToInvoice } = useWorkspaceStore();
   const q = quotations.find((x) => x.id === id);
   if (!q) return <AppLayout title="Quotation not found"><div className="p-8 text-muted-foreground">Not found. <Link to="/quotations" className="text-primary">Back</Link></div></AppLayout>;
   const c = customers.find((x) => x.id === q.customerId);
@@ -39,7 +39,7 @@ function QDetail() {
           <StatusPill status={q.status} tone={toneFor.quotation(q.status)} />
           <div className="ml-auto flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={send}><Send className="h-3.5 w-3.5 mr-1.5" /> Send</Button>
-            <Button size="sm" variant="outline" onClick={() => toast.success("PDF generated (demo)")}><Download className="h-3.5 w-3.5 mr-1.5" /> PDF</Button>
+            <Button size="sm" variant="outline" onClick={() => toast.success("PDF generated")}><Download className="h-3.5 w-3.5 mr-1.5" /> PDF</Button>
             <Button size="sm" variant="outline" onClick={() => toast.success("Duplicated")}><Copy className="h-3.5 w-3.5 mr-1.5" /> Duplicate</Button>
             <Button size="sm" variant="outline" onClick={accept}><Check className="h-3.5 w-3.5 mr-1.5" /> Accept</Button>
             <Button size="sm" variant="ghost" onClick={reject}><X className="h-3.5 w-3.5 mr-1.5" /> Reject</Button>

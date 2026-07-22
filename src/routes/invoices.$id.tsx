@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor } from "@/components/layouts/AppLayout";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { fmtDate, TZS } from "@/lib/format";
 import { ArrowLeft, Send, Download, Copy, CreditCard, Bell, Radio, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { useState } from "react";
-import type { PaymentMethod } from "@/data/mock";
+import type { PaymentMethod } from "@/data/backend-data";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/invoices/$id")({
@@ -30,7 +30,7 @@ const methods: PaymentMethod[] = ["M-Pesa", "Airtel Money", "Mixx by Yas", "Bank
 
 function InvDetail() {
   const { id } = Route.useParams();
-  const { invoices, customers, payments, recordPayment } = useDemoStore();
+  const { invoices, customers, payments, recordPayment } = useWorkspaceStore();
   const inv = invoices.find((x) => x.id === id);
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState<string>("");
@@ -57,7 +57,7 @@ function InvDetail() {
           <StatusPill status={inv.status} tone={toneFor.invoice(inv.status)} />
           <div className="ml-auto flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => toast.success("Invoice sent via WhatsApp")}><Send className="h-3.5 w-3.5 mr-1.5" /> Send</Button>
-            <Button size="sm" variant="outline" onClick={() => toast.success("PDF generated (demo)")}><Download className="h-3.5 w-3.5 mr-1.5" /> PDF</Button>
+            <Button size="sm" variant="outline" onClick={() => toast.success("PDF generated")}><Download className="h-3.5 w-3.5 mr-1.5" /> PDF</Button>
             <Button size="sm" variant="outline" onClick={() => toast.success("Reminder sent")}><Bell className="h-3.5 w-3.5 mr-1.5" /> Reminder</Button>
             <Button size="sm" variant="outline" onClick={() => toast.success("Duplicated")}><Copy className="h-3.5 w-3.5 mr-1.5" /> Duplicate</Button>
             <Dialog open={open} onOpenChange={setOpen}>

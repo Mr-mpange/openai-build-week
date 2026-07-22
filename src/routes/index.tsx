@@ -32,7 +32,7 @@ function Nav() {
           <a href="#features" className="hover:text-foreground">Features</a>
           <a href="#workflow" className="hover:text-foreground">How it works</a>
           <a href="#benefits" className="hover:text-foreground">Benefits</a>
-          <Link to="/demo" className="hover:text-foreground">Demo</Link>
+          <Link to="/workflow" className="hover:text-foreground">Workflow</Link>
         </nav>
         <div className="flex items-center gap-2">
           <Link to="/login"><Button variant="ghost" size="sm">Sign in</Button></Link>
@@ -61,7 +61,7 @@ function Hero() {
               extracts orders, drafts quotations and invoices, and tracks payments — all from one dashboard.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link to="/demo"><Button size="lg" className="gradient-primary"><PlayCircle className="h-4 w-4 mr-2" /> View Demo</Button></Link>
+              <Link to="/workflow"><Button size="lg" className="gradient-primary"><PlayCircle className="h-4 w-4 mr-2" /> View Workflow</Button></Link>
               <Link to="/dashboard"><Button size="lg" variant="outline">Open Dashboard</Button></Link>
               <Link to="/login"><Button size="lg" variant="ghost">Start Free Trial</Button></Link>
             </div>
@@ -193,7 +193,7 @@ function Workflow_() {
         ))}
       </div>
       <div className="mt-10 text-center">
-        <Link to="/demo"><Button size="lg" className="gradient-primary"><PlayCircle className="h-4 w-4 mr-2" /> Watch full workflow</Button></Link>
+        <Link to="/workflow"><Button size="lg" className="gradient-primary"><PlayCircle className="h-4 w-4 mr-2" /> Watch full workflow</Button></Link>
       </div>
     </section>
   );
@@ -249,9 +249,9 @@ function CTA() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-indigo/10" />
         <div className="relative">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">Ready to sell smarter?</h2>
-          <p className="mt-3 text-muted-foreground max-w-lg mx-auto">Start with the guided demo, or jump straight into the dashboard.</p>
+          <p className="mt-3 text-muted-foreground max-w-lg mx-auto">Start with the guided workflow, or jump straight into the dashboard.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link to="/demo"><Button size="lg" className="gradient-primary"><PlayCircle className="h-4 w-4 mr-2" /> View Demo</Button></Link>
+            <Link to="/workflow"><Button size="lg" className="gradient-primary"><PlayCircle className="h-4 w-4 mr-2" /> View Workflow</Button></Link>
             <Link to="/dashboard"><Button size="lg" variant="outline">Open Dashboard</Button></Link>
             <Link to="/login"><Button size="lg" variant="ghost">Start Free Trial <ArrowRight className="h-4 w-4 ml-1" /></Button></Link>
           </div>
@@ -267,10 +267,10 @@ function Footer() {
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-10 flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 rounded-md gradient-primary grid place-items-center"><Radio className="h-3.5 w-3.5" /></div>
-          <span>© {new Date().getFullYear()} BiasharaSauti · Demo build</span>
+          <span>© {new Date().getFullYear()} BiasharaSauti · Product build</span>
         </div>
         <div className="flex gap-6">
-          <Link to="/demo">Demo</Link>
+          <Link to="/workflow">Workflow</Link>
           <Link to="/login">Sign in</Link>
           <a href="#features">Features</a>
         </div>

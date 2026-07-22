@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, Avatar, StatusPill } from "@/components/layouts/AppLayout";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { fmtRelative, TZS } from "@/lib/format";
 import { useMemo, useState } from "react";
 import { Search, Plus, Filter, Users } from "lucide-react";
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/customers/")({
 });
 
 function CustomersPage() {
-  const { customers, team, addCustomer } = useDemoStore();
+  const { customers, team, addCustomer } = useWorkspaceStore();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [open, setOpen] = useState(false);

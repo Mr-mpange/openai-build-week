@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor } from "@/components/layouts/AppLayout";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { fmtDate, TZS } from "@/lib/format";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/quotations/")({
 const tabs = ["all", "draft", "sent", "viewed", "accepted", "rejected", "expired"] as const;
 
 function Q() {
-  const { quotations, customers } = useDemoStore();
+  const { quotations, customers } = useWorkspaceStore();
   const [tab, setTab] = useState<(typeof tabs)[number]>("all");
   const [q, setQ] = useState("");
   const filtered = useMemo(() => quotations.filter((x) => {

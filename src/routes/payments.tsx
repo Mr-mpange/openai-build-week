@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor } from "@/components/layouts/AppLayout";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { fmtDate, TZS } from "@/lib/format";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/payments")({
 });
 
 function Payments() {
-  const { payments, customers, invoices } = useDemoStore();
+  const { payments, customers, invoices } = useWorkspaceStore();
   const [tab, setTab] = useState<string>("all");
   const [q, setQ] = useState("");
   const filtered = useMemo(() => payments.filter((p) => {

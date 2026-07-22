@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layouts/AppLayout";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { TZS } from "@/lib/format";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { Package, Plus, Search, Grid, Rows, AlertTriangle, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import type { Product } from "@/data/mock";
+import type { Product } from "@/data/backend-data";
 
 export const Route = createFileRoute("/products")({
   head: () => ({
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/products")({
 });
 
 function Products() {
-  const { products, addProduct, updateProduct, deleteProduct } = useDemoStore();
+  const { products, addProduct, updateProduct, deleteProduct } = useWorkspaceStore();
   const [q, setQ] = useState("");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [creating, setCreating] = useState(false);

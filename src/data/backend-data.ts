@@ -1,4 +1,4 @@
-// Centralized mock data & TypeScript models for BiasharaSauti demo.
+// Centralized sample data & TypeScript models for BiasharaSauti.
 // All numeric currency values are TZS (Tanzanian shillings).
 
 export type ID = string;
@@ -184,7 +184,7 @@ const now = new Date();
 const daysAgo = (n: number, h = 0) => new Date(now.getTime() - n * 86400000 - h * 3600000).toISOString();
 const minsAgo = (m: number) => new Date(now.getTime() - m * 60000).toISOString();
 
-export const teamSeed: TeamMember[] = [
+export const teamData: TeamMember[] = [
   { id: "t1", name: "Grace Mollel", email: "grace@biasharasauti.com", role: "Owner", status: "active", conversationsHandled: 214, ordersHandled: 132, responseTimeMins: 4 },
   { id: "t2", name: "John Kimario", email: "john@biasharasauti.com", role: "Sales", status: "active", conversationsHandled: 176, ordersHandled: 98, responseTimeMins: 6 },
   { id: "t3", name: "Zainab Hussein", email: "zainab@biasharasauti.com", role: "Sales", status: "active", conversationsHandled: 140, ordersHandled: 74, responseTimeMins: 5 },
@@ -193,7 +193,7 @@ export const teamSeed: TeamMember[] = [
   { id: "t6", name: "Elias Ngowi", email: "elias@biasharasauti.com", role: "Administrator", status: "invited", conversationsHandled: 0, ordersHandled: 0, responseTimeMins: 0 },
 ];
 
-export const productsSeed: Product[] = [
+export const productsData: Product[] = [
   { id: "p1", name: "Cement 50kg", sku: "CEM-50", price: 18500, stock: 240, category: "Construction", status: "active", description: "Portland cement bag, ideal for masonry and construction." },
   { id: "p2", name: "Bottled Water Crate", sku: "BW-24", price: 18000, stock: 120, category: "Beverages", status: "active", description: "Crate of 24 x 500ml purified bottled water." },
   { id: "p3", name: "Custom Cake", sku: "CAKE-CUSTOM", price: 85000, stock: 15, category: "Bakery", status: "active", description: "Bespoke celebration cake, made to order." },
@@ -208,7 +208,7 @@ export const productsSeed: Product[] = [
   { id: "p12", name: "Bluetooth Speaker", sku: "SPK-BT", price: 128000, stock: 27, category: "Electronics", status: "active", description: "Portable 20W Bluetooth speaker, 12h battery." },
 ];
 
-export const customersSeed: Customer[] = [
+export const customersData: Customer[] = [
   { id: "c1", name: "Amina Mushi", business: "Amina Events & Supplies", phone: "+255 754 123 456", email: "amina@events.tz", location: "Sinza, Dar es Salaam", status: "vip", tags: ["events", "repeat"], source: "WhatsApp", assignedTo: "t2", totalSpend: 4820000, outstanding: 360000, lastInteraction: minsAgo(6), language: "sw", createdAt: daysAgo(180) },
   { id: "c2", name: "Joseph Mwakalinga", business: "Mwakalinga Hardware", phone: "+255 767 998 220", location: "Mbezi, Dar es Salaam", status: "active", tags: ["hardware"], source: "Referral", assignedTo: "t3", totalSpend: 2650000, outstanding: 0, lastInteraction: minsAgo(120), language: "sw", createdAt: daysAgo(140) },
   { id: "c3", name: "Neema Traders", business: "Neema Traders Ltd", phone: "+255 712 445 668", location: "Arusha", status: "active", tags: ["wholesale"], source: "WhatsApp", assignedTo: "t2", totalSpend: 6100000, outstanding: 220000, lastInteraction: minsAgo(45), language: "en", createdAt: daysAgo(220) },
@@ -232,7 +232,7 @@ export const customersSeed: Customer[] = [
 ];
 
 // Orders — build 25
-export const ordersSeed: Order[] = [
+export const ordersData: Order[] = [
   {
     id: "o1", number: "ORD-1042", customerId: "c1", status: "processing",
     items: [
@@ -284,8 +284,8 @@ extraOrderTemplates.forEach((t, i) => {
   const subtotal = t.items.reduce((s, it) => s + it.qty * it.price, 0);
   const delivery = 30000;
   const total = subtotal + delivery;
-  const c = customersSeed.find((c) => c.id === t.customerId)!;
-  ordersSeed.push({
+  const c = customersData.find((c) => c.id === t.customerId)!;
+  ordersData.push({
     id: `o${i + 2}`,
     number: `ORD-${1043 + i}`,
     customerId: t.customerId,
@@ -306,7 +306,7 @@ extraOrderTemplates.forEach((t, i) => {
 });
 
 // Quotations (15)
-export const quotationsSeed: Quotation[] = [
+export const quotationsData: Quotation[] = [
   {
     id: "q1", number: "QUO-2081", customerId: "c1", status: "sent",
     items: [
@@ -340,7 +340,7 @@ export const quotationsSeed: Quotation[] = [
   const subtotal = items.reduce((s, it) => s + it.qty * it.price, 0);
   const delivery = 30000;
   const total = subtotal + delivery;
-  quotationsSeed.push({
+  quotationsData.push({
     id: `q${i + 2}`,
     number: `QUO-${2082 + i}`,
     customerId: t.customerId,
@@ -354,7 +354,7 @@ export const quotationsSeed: Quotation[] = [
 });
 
 // Invoices (15) - Amina invoice partially paid
-export const invoicesSeed: Invoice[] = [
+export const invoicesData: Invoice[] = [
   {
     id: "i1", number: "INV-3120", customerId: "c1", quotationId: "q1", orderId: "o1",
     status: "partially_paid",
@@ -385,7 +385,7 @@ export const invoicesSeed: Invoice[] = [
   { customerId: "c14", status: "paid", total: 138000, paid: 138000 },
   { customerId: "c20", status: "paid", total: 918000, paid: 918000 },
 ].forEach((t, i) => {
-  invoicesSeed.push({
+  invoicesData.push({
     id: `i${i + 2}`,
     number: `INV-${3121 + i}`,
     customerId: t.customerId,
@@ -400,7 +400,7 @@ export const invoicesSeed: Invoice[] = [
 });
 
 // Payments (20)
-export const paymentsSeed: Payment[] = [
+export const paymentsData: Payment[] = [
   { id: "pay1", reference: "MPESA-8N42XZ", customerId: "c1", invoiceId: "i1", amount: 300000, method: "M-Pesa", status: "successful", date: minsAgo(15), reconciled: true },
 ];
 const methods: PaymentMethod[] = ["M-Pesa", "Airtel Money", "Mixx by Yas", "Bank Transfer", "Cash", "Card"];
@@ -425,7 +425,7 @@ const methods: PaymentMethod[] = ["M-Pesa", "Airtel Money", "Mixx by Yas", "Bank
   { customerId: "c17", amount: 340000 },
   { customerId: "c19", amount: 500000 },
 ].forEach((t, i) => {
-  paymentsSeed.push({
+  paymentsData.push({
     id: `pay${i + 2}`,
     reference: `${methods[i % methods.length].split(" ")[0].toUpperCase()}-${(Math.random().toString(36).slice(2, 8)).toUpperCase()}`,
     customerId: t.customerId,
@@ -439,7 +439,7 @@ const methods: PaymentMethod[] = ["M-Pesa", "Airtel Money", "Mixx by Yas", "Bank
 });
 
 // Conversations - featured Amina scenario + 29 others
-export const conversationsSeed: Conversation[] = [
+export const conversationsData: Conversation[] = [
   {
     id: "cv1", customerId: "c1", channel: "whatsapp", status: "open", assignedTo: "t2",
     unread: 2, tags: ["events", "quotation-sent"],
@@ -487,7 +487,7 @@ const englishSnippets = [
   "Do you offer bulk discounts?",
 ];
 
-customersSeed.slice(1).forEach((c, idx) => {
+customersData.slice(1).forEach((c, idx) => {
   const isSw = c.language === "sw" || (c.language === "mixed" && idx % 2 === 0);
   const pool = isSw ? swahiliSnippets : englishSnippets;
   const msgs: Message[] = [
@@ -495,7 +495,7 @@ customersSeed.slice(1).forEach((c, idx) => {
     { id: `m-${c.id}-2`, from: "ai", type: "text", body: isSw ? "Karibu! Naitwa Sauti, msaidizi wako. Nakupa taarifa muda huu huu." : "Welcome! I'm Sauti, your AI assistant. Let me get that information for you.", at: daysAgo(0, (idx % 20) + 0.9) },
     { id: `m-${c.id}-3`, from: "agent", type: "text", body: isSw ? "Habari, nimeshughulikia ombi lako." : "Hi there, I have your details ready.", at: daysAgo(0, (idx % 20) + 0.5) },
   ];
-  conversationsSeed.push({
+  conversationsData.push({
     id: `cv${idx + 2}`,
     customerId: c.id,
     channel: idx % 5 === 0 ? "voice" : "whatsapp",
@@ -509,7 +509,7 @@ customersSeed.slice(1).forEach((c, idx) => {
 });
 
 // Automations (8)
-export const automationsSeed: Automation[] = [
+export const automationsData: Automation[] = [
   { id: "a1", name: "Send quotation after customer confirmation", description: "When a customer confirms in-conversation, draft and send a quotation.", trigger: "Conversation → 'confirm quotation'", actions: ["Draft quotation", "Send via WhatsApp", "Log activity"], enabled: true, lastRun: minsAgo(30), runs: 128 },
   { id: "a2", name: "Send invoice after quotation acceptance", description: "Once a quotation is marked accepted, generate and send an invoice.", trigger: "Quotation status = accepted", actions: ["Create invoice", "Send to customer"], enabled: true, lastRun: minsAgo(18), runs: 96 },
   { id: "a3", name: "Send payment reminder after 3 days", description: "Politely nudge customers whose invoices are overdue.", trigger: "Invoice unpaid > 3 days", actions: ["Draft reminder", "Send WhatsApp"], enabled: true, lastRun: daysAgo(1), runs: 54 },
@@ -521,7 +521,7 @@ export const automationsSeed: Automation[] = [
 ];
 
 // Activity logs (30)
-export const activityLogsSeed: ActivityLog[] = [
+export const activityLogsData: ActivityLog[] = [
   { id: "al1", at: minsAgo(6), actor: "Amina Mushi", message: "Sent a new message on WhatsApp", kind: "message" },
   { id: "al2", at: minsAgo(15), actor: "System", message: "Payment received — TZS 300,000 (M-Pesa) for INV-3120", kind: "payment" },
   { id: "al3", at: minsAgo(18), actor: "AI Assistant", message: "Invoice INV-3120 generated from quotation QUO-2081", kind: "invoice" },
@@ -534,7 +534,7 @@ export const activityLogsSeed: ActivityLog[] = [
   { id: "al10", at: daysAgo(1), actor: "Grace Mollel", message: "Invited Elias Ngowi to the team", kind: "system" },
 ];
 for (let i = 11; i <= 30; i++) {
-  activityLogsSeed.push({
+  activityLogsData.push({
     id: `al${i}`,
     at: daysAgo(Math.floor(i / 3), (i % 12)),
     actor: ["System", "AI Assistant", "John Kimario", "Zainab Hussein", "Peter Massawe"][i % 5],

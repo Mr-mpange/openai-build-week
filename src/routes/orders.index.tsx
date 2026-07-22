@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor } from "@/components/layouts/AppLayout";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { fmtDate, TZS } from "@/lib/format";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Plus } from "lucide-react";
-import type { OrderStatus } from "@/data/mock";
+import type { OrderStatus } from "@/data/backend-data";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/orders/")({
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/orders/")({
 const statuses: (OrderStatus | "all")[] = ["all", "draft", "confirmed", "processing", "ready", "delivered", "cancelled"];
 
 function OrdersList() {
-  const { orders, customers } = useDemoStore();
+  const { orders, customers } = useWorkspaceStore();
   const [tab, setTab] = useState<OrderStatus | "all">("all");
   const [q, setQ] = useState("");
   const filtered = useMemo(() => orders.filter((o) => {

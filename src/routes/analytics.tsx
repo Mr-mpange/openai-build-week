@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layouts/AppLayout";
-import { revenueSeries } from "@/data/mock";
-import { useDemoStore } from "@/store/demo";
+import { revenueSeries } from "@/data/backend-data";
+import { useWorkspaceStore } from "@/store/workspace";
 import { TZS } from "@/lib/format";
 import { useState } from "react";
 import {
@@ -26,7 +26,7 @@ const chartColors = ["oklch(0.72 0.15 220)", "oklch(0.78 0.14 200)", "oklch(0.62
 
 function Analytics() {
   const [range, setRange] = useState<(typeof ranges)[number]>("Last 30 days");
-  const { products, customers, payments } = useDemoStore();
+  const { products, customers, payments } = useWorkspaceStore();
   const funnel = [
     { stage: "Conversations", value: 312 },
     { stage: "Quotations sent", value: 128 },

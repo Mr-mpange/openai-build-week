@@ -1,17 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { AppLayout, Avatar, StatusPill } from "@/components/layouts/AppLayout";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 import { fmtRelative, fmtTime, TZS } from "@/lib/format";
 import { toast } from "sonner";
 import {
   Search, Filter, Send, Paperclip, Mic, Sparkles, Play, Pause, FileText, Receipt,
   CreditCard, Phone, MoreVertical, ChevronLeft, MessageSquare,
 } from "lucide-react";
-import type { Message } from "@/data/mock";
+import type { Message } from "@/data/backend-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { mockAiService } from "@/services/mockServices";
+import { aiService } from "@/services/backendServices";
 
 export const Route = createFileRoute("/inbox")({
   head: () => ({
@@ -117,7 +117,7 @@ function MessageBubble({ msg, self }: { msg: Message; self: boolean }) {
 }
 
 function Inbox() {
-  const { conversations, customers, sendMessage, markConversationRead } = useDemoStore();
+  const { conversations, customers, sendMessage, markConversationRead } = useWorkspaceStore();
   const [selectedId, setSelectedId] = useState<string>(conversations[0]?.id);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "open" | "pending" | "resolved">("all");
@@ -160,7 +160,7 @@ function Inbox() {
   const simulateVoice = async () => {
     if (!active) return;
     const t = toast.loading("Transcribing voice note…");
-    const res = await mockAiService.transcribe();
+    const res = await aiService.transcribe();
     toast.success("Voice note transcribed", { id: t });
     sendMessage(active.id, {
       from: "customer",

@@ -1,0 +1,293 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+
+import {
+  activityLogsData,
+  automationsData,
+  conversationsData,
+  customersData,
+  invoicesData,
+  ordersData,
+  paymentsData,
+  productsData,
+  quotationsData,
+  teamData,
+  type ActivityLog,
+  type Automation,
+  type Conversation,
+  type Customer,
+  type Invoice,
+  type Message,
+  type Order,
+  type OrderStatus,
+  type Payment,
+  type PaymentMethod,
+  type Product,
+  type Quotation,
+  type TeamMember,
+} from "@/data/backend-data";
+import type { AppState, AddAutomationInput, AddCustomerInput, AddInvoiceInput, AddMemberInput, AddOrderInput, AddProductInput, AddQuotationInput } from "./backend-types";
+
+const DB_DIR = path.join(process.cwd(), ".data");
+const DB_FILE = path.join(DB_DIR, "biasharasauti-db.json");
+
+const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const baseState = (): AppState => ({
+  customers: clone(customersData),
+  products: clone(productsData),
+  orders: clone(ordersData),
+  quotations: clone(quotationsData),
+  invoices: clone(invoicesData),
+  payments: clone(paymentsData),
+  conversations: clone(conversationsData),
+  team: clone(teamData),
+  automations: clone(automationsData),
+  activity: clone(activityLogsData),
+});
+
+type DbFile = AppState & { version: 1 };
+
+let cache: DbFile | null = null;
+
+const uid = (p: string) => `${p}-${Math.random().toString(36).slice(2, 8)}`;
+const nextNum = (list: { number?: string }[], prefix: string) => {
+  const nums = list.map((x) => Number((x.number ?? "").split("-")[1] ?? 0)).filter((n) => !Number.isNaN(n));
+  const max = nums.length ? Math.max(...nums) : 1000;
+  return `${prefix}-${max + 1}`;
+};
+
+async function ensureFile() {
+  await mkdir(DB_DIR, { recursive: true });
+  try {
+    await readFile(DB_FILE, "utf8");
+  } catch {
+    await writeFile(DB_FILE, JSON.stringify({ version: 1, ...baseState() }, null, 2), "utf8");
+  }
+}
+
+export async function loadDb(): Promise<DbFile> {
+  if (cache) return cache;
+  await ensureFile();
+  const raw = await readFile(DB_FILE, "utf8");
+  cache = JSON.parse(raw) as DbFile;
+  return cache;
+}
+
+export async function saveDb(db: DbFile) {
+  cache = db;
+  await ensureFile();
+  await writeFile(DB_FILE, JSON.stringify(db, null, 2), "utf8");
+}
+
+export async function resetDb() {
+  const db = { version: 1 as const, ...baseState() };
+  await saveDb(db);
+  return db;
+}
+
+export function publicState(db: DbFile): AppState {
+  return {
+    customers: db.customers,
+    products: db.products,
+    orders: db.orders,
+    quotations: db.quotations,
+    invoices: db.invoices,
+    payments: db.payments,
+    conversations: db.conversations,
+    team: db.team,
+    automations: db.automations,
+    activity: db.activity,
+  };
+}
+
+export async function upsertMessage(conversationId: string, msg: Omit<Message, "id" | "at">) {
+  const db = await loadDb();
+  db.conversations = db.conversations.map((c) =>
+    c.id === conversationId
+      ? { ...c, lastMessageAt: new Date().toISOString(), messages: [...c.messages, { id: uid("m"), at: new Date().toISOString(), ...msg }] }
+      : c,
+  );
+  await saveDb(db);
+  return publicState(db);
+}
+
+export async function markConversationRead(conversationId: string) {
+  const db = await loadDb();
+  db.conversations = db.conversations.map((c) => (c.id === conversationId ? { ...c, unread: 0 } : c));
+  await saveDb(db);
+  return publicState(db);
+}
+
+export async function createOrder(input: AddOrderInput) {
+  const db = await loadDb();
+  const order: Order = { ...input, id: uid("o"), number: nextNum(db.orders, "ORD"), createdAt: new Date().toISOString(), timeline: [{ at: new Date().toISOString(), label: "Order created", by: "You" }] };
+  db.orders = [order, ...db.orders];
+  db.activity = [{ id: uid("al"), at: new Date().toISOString(), actor: "You", message: `Created order ${order.number}`, kind: "order" }, ...db.activity];
+  await saveDb(db);
+  return { db: publicState(db), order };
+}
+
+export async function updateOrderStatus(id: string, status: OrderStatus) {
+  const db = await loadDb();
+  db.orders = db.orders.map((o) => o.id === id ? { ...o, status, timeline: [...o.timeline, { at: new Date().toISOString(), label: `Status → ${status}`, by: "You" }] } : o);
+  await saveDb(db);
+  return publicState(db);
+}
+
+export async function assignOrder(id: string, memberId: string) {
+  const db = await loadDb();
+  db.orders = db.orders.map((o) => (o.id === id ? { ...o, assignedTo: memberId } : o));
+  await saveDb(db);
+  return publicState(db);
+}
+
+export async function createQuotation(input: AddQuotationInput) {
+  const db = await loadDb();
+  const quotation: Quotation = { ...input, id: uid("q"), number: nextNum(db.quotations, "QUO"), createdAt: new Date().toISOString() };
+  db.quotations = [quotation, ...db.quotations];
+  db.activity = [{ id: uid("al"), at: new Date().toISOString(), actor: "You", message: `Created quotation ${quotation.number}`, kind: "quotation" }, ...db.activity];
+  await saveDb(db);
+  return { db: publicState(db), quotation };
+}
+
+export async function updateQuotationStatus(id: string, status: Quotation["status"]) {
+  const db = await loadDb();
+  db.quotations = db.quotations.map((q) => (q.id === id ? { ...q, status } : q));
+  await saveDb(db);
+  return publicState(db);
+}
+
+export async function convertQuotationToInvoice(quotationId: string) {
+  const db = await loadDb();
+  const q = db.quotations.find((x) => x.id === quotationId);
+  if (!q) throw new Error("Quotation not found");
+  const invoice: Invoice = {
+    id: uid("i"),
+    number: nextNum(db.invoices, "INV"),
+    customerId: q.customerId,
+    quotationId: q.id,
+    status: "sent",
+    items: q.items,
+    subtotal: q.subtotal,
+    discount: q.discount,
+    tax: q.tax,
+    delivery: q.delivery,
+    total: q.total,
+    paid: 0,
+    dueDate: new Date(Date.now() + 7 * 86400000).toISOString(),
+    createdAt: new Date().toISOString(),
+    payments: [],
+  };
+  db.invoices = [invoice, ...db.invoices];
+  db.quotations = db.quotations.map((qq) => (qq.id === q.id ? { ...qq, status: "accepted" } : qq));
+  db.activity = [{ id: uid("al"), at: new Date().toISOString(), actor: "You", message: `Converted ${q.number} → ${invoice.number}`, kind: "invoice" }, ...db.activity];
+  await saveDb(db);
+  return { db: publicState(db), invoice };
+}
+
+export async function createInvoice(input: AddInvoiceInput) {
+  const db = await loadDb();
+  const invoice: Invoice = { ...input, id: uid("i"), number: nextNum(db.invoices, "INV"), createdAt: new Date().toISOString(), payments: [] };
+  db.invoices = [invoice, ...db.invoices];
+  db.activity = [{ id: uid("al"), at: new Date().toISOString(), actor: "You", message: `Created invoice ${invoice.number}`, kind: "invoice" }, ...db.activity];
+  await saveDb(db);
+  return { db: publicState(db), invoice };
+}
+
+export async function recordPayment(invoiceId: string, amount: number, method: PaymentMethod) {
+  const db = await loadDb();
+  const invoice = db.invoices.find((x) => x.id === invoiceId);
+  if (!invoice) throw new Error("Invoice not found");
+  const pay: Payment = {
+    id: uid("pay"),
+    reference: `${method.split(" ")[0].toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+    customerId: invoice.customerId,
+    invoiceId,
+    amount,
+    method,
+    status: "successful",
+    date: new Date().toISOString(),
+    reconciled: true,
+  };
+  const newPaid = invoice.paid + amount;
+  const newStatus: Invoice["status"] = newPaid >= invoice.total ? "paid" : "partially_paid";
+  db.payments = [pay, ...db.payments];
+  db.invoices = db.invoices.map((x) => x.id === invoiceId ? { ...x, paid: newPaid, status: newStatus, payments: [...x.payments, pay.id] } : x);
+  db.customers = db.customers.map((c) => c.id === invoice.customerId ? { ...c, outstanding: Math.max(0, c.outstanding - amount), totalSpend: c.totalSpend + amount } : c);
+  db.activity = [{ id: uid("al"), at: new Date().toISOString(), actor: "You", message: `Recorded ${method} payment ${pay.reference}`, kind: "payment" }, ...db.activity];
+  await saveDb(db);
+  return { db: publicState(db), payment: pay };
+}
+
+export async function createCustomer(input: AddCustomerInput) {
+  const db = await loadDb();
+  const customer: Customer = { ...input, id: uid("c"), createdAt: new Date().toISOString() };
+  db.customers = [customer, ...db.customers];
+  await saveDb(db);
+  return { db: publicState(db), customer };
+}
+
+export async function updateCustomer(id: string, patch: Partial<Customer>) {
+  const db = await loadDb();
+  db.customers = db.customers.map((c) => (c.id === id ? { ...c, ...patch } : c));
+  await saveDb(db);
+  return publicState(db);
+}
+
+export async function createProduct(input: AddProductInput) {
+  const db = await loadDb();
+  const product: Product = { ...input, id: uid("p") };
+  db.products = [product, ...db.products];
+  await saveDb(db);
+  return { db: publicState(db), product };
+}
+
+export async function updateProduct(id: string, patch: Partial<Product>) {
+  const db = await loadDb();
+  db.products = db.products.map((p) => (p.id === id ? { ...p, ...patch } : p));
+  await saveDb(db);
+  return publicState(db);
+}
+
+export async function deleteProduct(id: string) {
+  const db = await loadDb();
+  db.products = db.products.filter((p) => p.id !== id);
+  await saveDb(db);
+  return publicState(db);
+}
+
+export async function createAutomation(input: AddAutomationInput) {
+  const db = await loadDb();
+  const automation: Automation = { ...input, id: uid("a"), runs: 0 };
+  db.automations = [automation, ...db.automations];
+  await saveDb(db);
+  return { db: publicState(db), automation };
+}
+
+export async function toggleAutomation(id: string) {
+  const db = await loadDb();
+  db.automations = db.automations.map((a) => (a.id === id ? { ...a, enabled: !a.enabled } : a));
+  await saveDb(db);
+  return publicState(db);
+}
+
+export async function runAutomation(id: string) {
+  const db = await loadDb();
+  db.automations = db.automations.map((a) => (a.id === id ? { ...a, lastRun: new Date().toISOString(), runs: a.runs + 1 } : a));
+  await saveDb(db);
+  return publicState(db);
+}
+
+export async function inviteMember(input: AddMemberInput) {
+  const db = await loadDb();
+  const member: TeamMember = { ...input, id: uid("t"), conversationsHandled: 0, ordersHandled: 0, responseTimeMins: 0, status: "invited" };
+  db.team = [...db.team, member];
+  await saveDb(db);
+  return { db: publicState(db), member };
+}
+
+export async function bootstrapState() {
+  const db = await loadDb();
+  return publicState(db);
+}

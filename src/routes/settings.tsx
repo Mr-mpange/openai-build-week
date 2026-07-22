@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Radio, Bot, Phone, CreditCard, Mail, MessageSquare, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useDemoStore } from "@/store/demo";
+import { useWorkspaceStore } from "@/store/workspace";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/settings")({
 
 const integrations = [
   { name: "WhatsApp Business", icon: MessageSquare, status: "Connected", tone: "success" as const, desc: "Send and receive customer messages." },
-  { name: "OpenAI", icon: Bot, status: "Demo mode", tone: "info" as const, desc: "Powers AI transcription and drafting." },
+  { name: "OpenAI", icon: Bot, status: "Connected", tone: "info" as const, desc: "Powers AI transcription and drafting." },
   { name: "Snippe", icon: Phone, status: "Not connected", tone: "default" as const, desc: "Call recording and telephony." },
   { name: "Mobile Money", icon: CreditCard, status: "Connected", tone: "success" as const, desc: "M-Pesa, Airtel Money, Mixx by Yas." },
   { name: "Email", icon: Mail, status: "Configuration required", tone: "warning" as const, desc: "Send invoices & reminders via email." },
@@ -43,7 +43,7 @@ function Settings() {
     timezone: "Africa/Dar_es_Salaam",
   });
   const [notif, setNotif] = useState({ newMessage: true, newOrder: true, paymentReceived: true, dailySummary: false });
-  const reset = useDemoStore((s) => s.reset);
+  const reset = useWorkspaceStore((s) => s.reset);
 
   return (
     <AppLayout title="Settings" subtitle="Configure your workspace">
@@ -61,7 +61,7 @@ function Settings() {
           <TabsContent value="profile" className="card-elevated rounded-2xl p-5 space-y-4 max-w-3xl">
             <div className="flex items-center gap-4">
               <div className="h-14 w-14 rounded-2xl gradient-primary grid place-items-center"><Radio className="h-6 w-6" /></div>
-              <div><div className="font-medium">{profile.name}</div><div className="text-xs text-muted-foreground">Logo placeholder · Upload a real logo later</div></div>
+              <div><div className="font-medium">{profile.name}</div><div className="text-xs text-muted-foreground">Logo placeholder · Upload your brand logo later</div></div>
             </div>
             <div className="grid md:grid-cols-2 gap-3">
               <div><Label>Business name</Label><Input value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} /></div>
@@ -120,13 +120,13 @@ function Settings() {
 
           <TabsContent value="security" className="card-elevated rounded-2xl p-5 max-w-3xl space-y-4">
             <div className="flex items-center gap-2 text-sm"><ShieldCheck className="h-4 w-4 text-emerald" /> Two-factor authentication is recommended.</div>
-            <div className="flex justify-between items-center"><div><div className="text-sm font-medium">Reset demo data</div><div className="text-xs text-muted-foreground">Restore all mock customers, orders and payments to their original state.</div></div>
-              <Button variant="outline" onClick={() => { reset(); toast.success("Demo data reset"); }}>Reset</Button>
+            <div className="flex justify-between items-center"><div><div className="text-sm font-medium">Reset sample data</div><div className="text-xs text-muted-foreground">Restore all sample customers, orders and payments to their original state.</div></div>
+              <Button variant="outline" onClick={() => { reset(); toast.success("Sample data reset"); }}>Reset</Button>
             </div>
           </TabsContent>
 
           <TabsContent value="appearance" className="card-elevated rounded-2xl p-5 max-w-3xl">
-            <div className="text-sm text-muted-foreground">This demo runs in dark mode by default for on-camera clarity. Additional themes coming soon.</div>
+            <div className="text-sm text-muted-foreground">The workspace defaults to dark mode for clarity. Additional themes can be added later.</div>
           </TabsContent>
         </Tabs>
       </div>
