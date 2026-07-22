@@ -91,6 +91,9 @@ export interface Invoice {
   quotationId?: ID;
   orderId?: ID;
   status: InvoiceStatus;
+  paymentLinkUrl?: string;
+  paymentProvider?: "snippe";
+  paymentLinkStatus?: "none" | "created" | "paid" | "expired";
   items: OrderItem[];
   subtotal: number;
   discount: number;

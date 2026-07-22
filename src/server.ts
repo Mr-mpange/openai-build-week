@@ -6,6 +6,7 @@ import { renderErrorPage } from "./lib/error-page";
 import {
   bootstrapState,
   assignOrder,
+  attachInvoicePaymentLink,
   convertQuotationToInvoice,
   createAutomation,
   createCustomer,
@@ -18,6 +19,7 @@ import {
   loadDb,
   markConversationRead,
   recordPayment,
+  markInvoicePaidByWebhook,
   resetDb,
   toggleAutomation,
   updateCustomer,
@@ -146,6 +148,21 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
       const action = await request.json() as ApiAction;
       const db = await applyAction(action);
       return withCors(request, Response.json(db));
+    }
+    if (request.method === "POST" && url.pathname === "/api/payments/link") {
+      const { invoiceId } = await request.json() as { invoiceId?: string };
+      if (!invoiceId) return withCors(request, Response.json({ ok: false, error: "invoiceId is required" }, { status: 400 }));
+      const created = await createSnippePaymentLink(invoiceId, env);
+      const result = await attachInvoicePaymentLink(invoiceId, created.url);
+      return withCors(request, Response.json({ ok: true, invoice: result.invoice }));
+    }
+    if (request.method === "POST" && url.pathname === "/api/webhooks/snippe") {
+      const payload = await request.json() as { invoiceId?: string; amount?: number; reference?: string };
+      if (!payload.invoiceId || !payload.amount || !payload.reference) {
+        return withCors(request, Response.json({ ok: false, error: "invoiceId, amount, and reference are required" }, { status: 400 }));
+      }
+      const result = await markInvoicePaidByWebhook(payload.invoiceId, payload.amount, payload.reference, "snippe");
+      return withCors(request, Response.json({ ok: true, payment: result.payment }));
     }
     if (request.method === "POST" && url.pathname === "/api/ai") {
       const body = await request.json() as AiRequest;
@@ -304,6 +321,51 @@ function shouldFallBackToGemini(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const message = error.message.toLowerCase();
   return message.includes("429") || message.includes("quota") || message.includes("billing") || message.includes("insufficient_quota");
+}
+
+async function createSnippePaymentLink(invoiceId: string, env: unknown): Promise<{ url: string }> {
+  const apiKey = getSnippeApiKey(env);
+  if (!apiKey) {
+    const fallbackUrl = `${process.env.SNIPPE_PUBLIC_BASE_URL ?? "https://snippe.sh"}/pay/${invoiceId}`;
+    return { url: fallbackUrl };
+  }
+
+  const response = await fetch(`${getSnippeBaseUrl(env)}/payment-links`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      reference: invoiceId,
+      metadata: { invoiceId },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Snippe payment link creation failed: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json() as { url?: string; payment_link_url?: string; checkout_url?: string };
+  const url = data.url ?? data.payment_link_url ?? data.checkout_url;
+  if (!url) throw new Error("Snippe payment link response did not include a URL");
+  return { url };
+}
+
+function getSnippeApiKey(env: unknown): string | undefined {
+  if (!env || typeof env !== "object") return process.env.SNIPPE_API_KEY;
+  const value = (env as Record<string, unknown>).SNIPPE_API_KEY;
+  if (typeof value === "string" && value.trim()) return value;
+  return process.env.SNIPPE_API_KEY;
+}
+
+function getSnippeBaseUrl(env: unknown): string {
+  const fromEnv = typeof env === "object" && env
+    ? (env as Record<string, unknown>).SNIPPE_API_BASE_URL
+    : undefined;
+  const value = typeof fromEnv === "string" && fromEnv.trim() ? fromEnv : process.env.SNIPPE_API_BASE_URL;
+  return (value?.trim() || "https://api.snippe.sh").replace(/\/$/, "");
 }
 
 function fallbackAi(body: AiRequest): AiResponse {

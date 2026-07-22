@@ -13,6 +13,7 @@ import {
 import { useState } from "react";
 import type { PaymentMethod } from "@/data/backend-data";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/invoices/$id")({
   head: ({ params }) => ({
@@ -33,6 +34,7 @@ function InvDetail() {
   const { invoices, customers, payments, recordPayment } = useWorkspaceStore();
   const inv = invoices.find((x) => x.id === id);
   const [open, setOpen] = useState(false);
+  const [linkBusy, setLinkBusy] = useState(false);
   const [amount, setAmount] = useState<string>("");
   const [method, setMethod] = useState<PaymentMethod>("M-Pesa");
 
@@ -49,6 +51,22 @@ function InvDetail() {
     setOpen(false); setAmount("");
   };
 
+  const createLink = async () => {
+    setLinkBusy(true);
+    try {
+      const result = await api.createInvoicePaymentLink(inv.id);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Snippe payment link created");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create payment link");
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
   return (
     <AppLayout title={inv.number} subtitle={c?.name}>
       <div className="p-4 md:p-6 space-y-4">
@@ -60,6 +78,10 @@ function InvDetail() {
             <Button size="sm" variant="outline" onClick={() => toast.success("PDF generated")}><Download className="h-3.5 w-3.5 mr-1.5" /> PDF</Button>
             <Button size="sm" variant="outline" onClick={() => toast.success("Reminder sent")}><Bell className="h-3.5 w-3.5 mr-1.5" /> Reminder</Button>
             <Button size="sm" variant="outline" onClick={() => toast.success("Duplicated")}><Copy className="h-3.5 w-3.5 mr-1.5" /> Duplicate</Button>
+            <Button size="sm" variant="outline" onClick={createLink} disabled={linkBusy}>
+              <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+              {linkBusy ? "Creating..." : "Snippe link"}
+            </Button>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="gradient-primary" disabled={balance <= 0}><CreditCard className="h-3.5 w-3.5 mr-1.5" /> Record payment</Button>
@@ -154,6 +176,12 @@ function InvDetail() {
             </div>
 
             {inv.notes && <div className="mt-6 text-xs text-muted-foreground"><span className="font-medium text-foreground">Notes: </span>{inv.notes}</div>}
+            {inv.paymentLinkUrl && (
+              <div className="mt-6 rounded-xl border border-border bg-muted/20 p-4 text-sm">
+                <div className="font-medium">Snippe payment link</div>
+                <div className="mt-1 break-all text-xs text-muted-foreground">{inv.paymentLinkUrl}</div>
+              </div>
+            )}
           </div>
 
           <div className="card-elevated rounded-2xl p-5">

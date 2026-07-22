@@ -220,6 +220,77 @@ export async function recordPayment(invoiceId: string, amount: number, method: P
   return { db: publicState(db), payment: pay };
 }
 
+export async function attachInvoicePaymentLink(invoiceId: string, paymentLinkUrl: string) {
+  const db = await loadDb();
+  const invoice = db.invoices.find((x) => x.id === invoiceId);
+  if (!invoice) throw new Error("Invoice not found");
+  db.invoices = db.invoices.map((x) =>
+    x.id === invoiceId
+      ? {
+          ...x,
+          paymentLinkUrl,
+          paymentProvider: "snippe",
+          paymentLinkStatus: "created",
+        }
+      : x,
+  );
+  db.activity = [
+    {
+      id: uid("al"),
+      at: new Date().toISOString(),
+      actor: "System",
+      message: `Created Snippe payment link for ${invoice.number}`,
+      kind: "payment",
+    },
+    ...db.activity,
+  ];
+  await saveDb(db);
+  return { db: publicState(db), invoice: db.invoices.find((x) => x.id === invoiceId) ?? invoice };
+}
+
+export async function markInvoicePaidByWebhook(invoiceId: string, amount: number, reference: string, provider: "snippe") {
+  const db = await loadDb();
+  const invoice = db.invoices.find((x) => x.id === invoiceId);
+  if (!invoice) throw new Error("Invoice not found");
+  const pay: Payment = {
+    id: uid("pay"),
+    reference,
+    customerId: invoice.customerId,
+    invoiceId,
+    amount,
+    method: "Bank Transfer",
+    status: "successful",
+    date: new Date().toISOString(),
+    reconciled: true,
+  };
+  const newPaid = invoice.paid + amount;
+  const newStatus: Invoice["status"] = newPaid >= invoice.total ? "paid" : "partially_paid";
+  db.payments = [pay, ...db.payments];
+  db.invoices = db.invoices.map((x) =>
+    x.id === invoiceId
+      ? {
+          ...x,
+          paid: newPaid,
+          status: newStatus,
+          payments: [...x.payments, pay.id],
+          paymentLinkStatus: provider === "snippe" && newPaid >= x.total ? "paid" : x.paymentLinkStatus,
+        }
+      : x,
+  );
+  db.activity = [
+    {
+      id: uid("al"),
+      at: new Date().toISOString(),
+      actor: "System",
+      message: `Snippe payment confirmed for ${invoice.number} (${reference})`,
+      kind: "payment",
+    },
+    ...db.activity,
+  ];
+  await saveDb(db);
+  return { db: publicState(db), payment: pay };
+}
+
 export async function createCustomer(input: AddCustomerInput) {
   const db = await loadDb();
   const customer: Customer = { ...input, id: uid("c"), createdAt: new Date().toISOString() };

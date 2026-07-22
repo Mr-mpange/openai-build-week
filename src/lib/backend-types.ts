@@ -38,6 +38,7 @@ export type AddMemberInput = Omit<TeamMember, "id" | "conversationsHandled" | "o
 export type AddOrderInput = Omit<Order, "id" | "number" | "createdAt" | "timeline">;
 export type AddQuotationInput = Omit<Quotation, "id" | "number" | "createdAt">;
 export type AddInvoiceInput = Omit<Invoice, "id" | "number" | "createdAt" | "payments">;
+export type InvoicePaymentLinkResponse = { ok: true; invoice: Invoice } | { ok: false; error: string };
 
 export type ApiAction =
   | { type: "order.create"; payload: AddOrderInput }
@@ -48,6 +49,7 @@ export type ApiAction =
   | { type: "quotation.convert"; payload: { quotationId: string } }
   | { type: "invoice.create"; payload: AddInvoiceInput }
   | { type: "invoice.pay"; payload: { invoiceId: string; amount: number; method: PaymentMethod } }
+  | { type: "invoice.payment-link"; payload: { invoiceId: string } }
   | { type: "customer.create"; payload: AddCustomerInput }
   | { type: "customer.update"; payload: { id: string; patch: Partial<Customer> } }
   | { type: "product.create"; payload: AddProductInput }

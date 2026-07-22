@@ -1,4 +1,4 @@
-import type { AiRequest, AiResponse, AppState, ApiAction, AuthUser, LoginResponse } from "./backend-types";
+import type { AiRequest, AiResponse, AppState, ApiAction, AuthUser, InvoicePaymentLinkResponse, LoginResponse } from "./backend-types";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
@@ -27,6 +27,8 @@ export const api = {
   me: () => request<{ user: AuthUser | null }>("/api/me"),
   action: (action: ApiAction) =>
     request<AppState>("/api/action", { method: "POST", body: JSON.stringify(action) }),
+  createInvoicePaymentLink: (invoiceId: string) =>
+    request<InvoicePaymentLinkResponse>("/api/payments/link", { method: "POST", body: JSON.stringify({ invoiceId }) }),
   aiChat: (prompt: string) =>
     request<{ ok: true; text: string } | { ok: false; error: string }>("/api/ai", {
       method: "POST",
