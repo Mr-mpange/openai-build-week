@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor, Avatar } from "@/components/layouts/AppLayout";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { TZS, shortTZS, fmtRelative } from "@/lib/format";
 import {
   TrendingUp, TrendingDown, MessageSquare, Bot, ArrowUpRight, Timer, Users,
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
 
 export const Route = createFileRoute("/dashboard")({
+  loader: workspaceRouteLoader,
   head: () => ({
     meta: [
       { title: "Dashboard — BiasharaSauti" },

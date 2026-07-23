@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layouts/AppLayout";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { fmtRelative } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -15,6 +15,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/automations")({
+  loader: workspaceRouteLoader,
   head: () => ({
     meta: [
       { title: "Automations — BiasharaSauti" },

@@ -1,16 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { redirect } from "@tanstack/react-router";
 import {
-  activityLogsData,
-  automationsData,
-  conversationsData,
-  customersData,
-  invoicesData,
-  ordersData,
-  paymentsData,
-  productsData,
-  quotationsData,
-  teamData,
   type ActivityLog,
   type Automation,
   type Conversation,
@@ -24,12 +15,9 @@ import {
   type Product,
   type Quotation,
   type TeamMember,
-} from "../data/backend-data";
+} from "../data/domain-types";
 import { api } from "@/lib/api";
 import type { ApiAction, AppState, IntegrationStatus } from "@/lib/backend-types";
-
-// Deep clone helpers so we can restore the live workspace baseline on reset
-const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 
 interface WorkspaceState {
   customers: Customer[];
@@ -86,24 +74,24 @@ interface WorkspaceState {
 }
 
 const initial = (): Pick<WorkspaceState, "customers" | "products" | "orders" | "quotations" | "invoices" | "payments" | "conversations" | "team" | "automations" | "activity" | "integrations"> => ({
-  customers: clone(customersData),
-  products: clone(productsData),
-  orders: clone(ordersData),
-  quotations: clone(quotationsData),
-  invoices: clone(invoicesData),
-  payments: clone(paymentsData),
-  conversations: clone(conversationsData),
-  team: clone(teamData),
-  automations: clone(automationsData),
-  activity: clone(activityLogsData),
+  customers: [],
+  products: [],
+  orders: [],
+  quotations: [],
+  invoices: [],
+  payments: [],
+  conversations: [],
+  team: [],
+  automations: [],
+  activity: [],
   integrations: {
-    openai: "configured",
-    gemini: "configured",
-    snippe: "needs-webhook",
+    openai: "not-configured",
+    gemini: "not-configured",
+    snippe: "not-configured",
     email: "not-configured",
     sms: "not-configured",
-    whatsapp: "configured",
-    mobileMoney: "needs-webhook",
+    whatsapp: "not-configured",
+    mobileMoney: "not-configured",
   } satisfies AppState["integrations"],
 });
 
@@ -118,12 +106,12 @@ const nextNum = (list: { number?: string }[], prefix: string) => {
 const uid = (p: string) => `${p}-${Math.random().toString(36).slice(2, 8)}`;
 
 async function sync(action: ApiAction) {
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
-  if (!apiBase) return;
   try {
-    await api.action(action);
+    const state = await api.action(action);
+    useWorkspaceStore.setState(state);
   } catch (error) {
     console.error("Failed to sync workspace action", error);
+    void hydrateWorkspace(true);
   }
 }
 
@@ -139,6 +127,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         set({ isAuthed: true });
       },
       logout: () => {
+        api.clearSession();
+        void api.logout().catch(() => undefined);
         set({ isAuthed: false, authUser: null });
       },
       setAuthUser: (authUser) => set({ authUser }),
@@ -358,38 +348,49 @@ export const useWorkspaceStore = create<WorkspaceState>()(
     }),
     {
       name: "biasharasauti-workspace",
-      // don't persist the seeded workspace too aggressively — keep reset predictable
       partialize: (s) => ({
         isAuthed: s.isAuthed,
         authUser: s.authUser,
         workflowStep: s.workflowStep,
-        customers: s.customers,
-        products: s.products,
-        orders: s.orders,
-        quotations: s.quotations,
-        invoices: s.invoices,
-        payments: s.payments,
-        conversations: s.conversations,
-        team: s.team,
-        automations: s.automations,
-        activity: s.activity,
       }),
+      version: 2,
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<WorkspaceState>;
+        const hasSession = api.hasSession();
+        return {
+          ...current,
+          isAuthed: hasSession && Boolean(saved.isAuthed),
+          authUser: hasSession ? saved.authUser ?? null : null,
+          workflowStep: saved.workflowStep ?? 0,
+        };
+      },
     },
   ),
 );
 
-export async function hydrateWorkspace() {
+let hydratePromise: Promise<void> | null = null;
+let hydratedAt = 0;
+
+export async function hydrateWorkspace(force = false) {
   if (typeof window === "undefined") return;
-  // Skip bootstrap when no backend URL is configured (e.g. static GitHub Pages deploy).
-  // The Zustand store is seeded locally and persisted in localStorage.
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
-  if (!apiBase) return;
-  try {
-    const state = await api.bootstrap();
-    useWorkspaceStore.setState((s) => ({ ...s, ...state }));
-  } catch (error) {
-    console.error("Failed to hydrate workspace", error);
-  }
+  if (!api.hasSession()) return;
+  if (!force && Date.now() - hydratedAt < 15_000) return;
+  if (hydratePromise) return hydratePromise;
+  hydratePromise = api.bootstrap()
+    .then((state) => {
+      useWorkspaceStore.setState(state);
+      hydratedAt = Date.now();
+    })
+    .finally(() => {
+      hydratePromise = null;
+    });
+  return hydratePromise;
+}
+
+export async function workspaceRouteLoader() {
+  if (typeof window === "undefined") return;
+  if (!api.hasSession()) throw redirect({ to: "/login" });
+  await hydrateWorkspace();
 }
 
 // Selectors

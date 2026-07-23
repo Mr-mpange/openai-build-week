@@ -78,7 +78,7 @@ function corsHeaders(request: Request): Headers {
   const origin = request.headers.get("origin");
   const headers = new Headers({
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "content-type",
+    "access-control-allow-headers": "authorization, content-type",
     "access-control-expose-headers": "set-cookie",
     "access-control-allow-credentials": "true",
     vary: "origin",
@@ -122,7 +122,7 @@ export default {
 
 async function handleApi(request: Request, env: unknown): Promise<Response> {
   const url = new URL(request.url);
-  const session = readSession(request);
+  const session = readSession(request, env);
   const scope = session?.email ?? "shared";
   try {
     return await runWithDbScope(scope, async () => {
@@ -130,6 +130,7 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
         return new Response(null, { status: 204, headers: corsHeaders(request) });
       }
       if (request.method === "GET" && url.pathname === "/api/bootstrap") {
+        if (!session) return withCors(request, Response.json({ error: "Unauthorized" }, { status: 401 }));
         return withCors(request, Response.json(await bootstrapState()));
       }
       if (request.method === "GET" && url.pathname === "/api/me") {
@@ -140,16 +141,20 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
       if (request.method === "POST" && url.pathname === "/api/login") {
         const { email, password } = await request.json() as { email?: string; password?: string };
         if (!email || !password) return withCors(request, Response.json({ ok: false, error: "Email and password are required" }, { status: 400 }));
+        const user = { name: email.split("@")[0], email };
+        const token = createSessionToken(user, env);
         const headers = new Headers({ "content-type": "application/json" });
-        headers.append("set-cookie", `bs_session=${Buffer.from(email ?? "").toString("base64")}; Path=/; HttpOnly; SameSite=Lax`);
-        return withCors(request, new Response(JSON.stringify({ ok: true, token: "session", user: { name: email.split("@")[0], email } }), { headers }));
+        headers.append("set-cookie", `bs_session=${token}; Path=/; HttpOnly; SameSite=Lax`);
+        return withCors(request, new Response(JSON.stringify({ ok: true, token, user }), { headers }));
       }
       if (request.method === "POST" && url.pathname === "/api/register") {
-        const { email, password } = await request.json() as { email?: string; password?: string };
-        if (!email || !password) return withCors(request, Response.json({ ok: false, error: "Email and password are required" }, { status: 400 }));
+        const { name, email, password } = await request.json() as { name?: string; email?: string; password?: string };
+        if (!name || !email || !password) return withCors(request, Response.json({ ok: false, error: "Name, email, and password are required" }, { status: 400 }));
+        const user = { name: name.trim(), email };
+        const token = createSessionToken(user, env);
         const headers = new Headers({ "content-type": "application/json" });
-        headers.append("set-cookie", `bs_session=${Buffer.from(email ?? "").toString("base64")}; Path=/; HttpOnly; SameSite=Lax`);
-        return withCors(request, new Response(JSON.stringify({ ok: true, token: "session", user: { name: email.split("@")[0], email } }), { headers }));
+        headers.append("set-cookie", `bs_session=${token}; Path=/; HttpOnly; SameSite=Lax`);
+        return withCors(request, new Response(JSON.stringify({ ok: true, token, user }), { headers }));
       }
       if (request.method === "POST" && url.pathname === "/api/logout") {
         const headers = new Headers({ "content-type": "application/json" });
@@ -157,11 +162,13 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
         return withCors(request, new Response(JSON.stringify({ ok: true }), { headers }));
       }
       if (request.method === "POST" && url.pathname === "/api/action") {
+        if (!session) return withCors(request, Response.json({ error: "Unauthorized" }, { status: 401 }));
         const action = await request.json() as ApiAction;
         const db = await applyAction(action);
         return withCors(request, Response.json(db));
       }
       if (request.method === "POST" && url.pathname === "/api/payments/link") {
+        if (!session) return withCors(request, Response.json({ error: "Unauthorized" }, { status: 401 }));
         const { invoiceId } = await request.json() as { invoiceId?: string };
         if (!invoiceId) return withCors(request, Response.json({ ok: false, error: "invoiceId is required" }, { status: 400 }));
         const created = await createSnippePaymentLink(invoiceId, env);
@@ -184,6 +191,7 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
         return withCors(request, Response.json({ ok: true }));
       }
       if (request.method === "POST" && url.pathname === "/api/ai") {
+        if (!session) return withCors(request, Response.json({ error: "Unauthorized" }, { status: 401 }));
         const body = await request.json() as AiRequest;
         const result = await handleAi(body, env);
         return withCors(request, Response.json(result));
@@ -528,17 +536,51 @@ function normalizeTranscriptionJson(text: string): AiResponse {
   return fallbackAi({ mode: "transcribe" });
 }
 
-function readSession(request: Request): { email: string; name: string } | null {
+function readSession(request: Request, env: unknown): { email: string; name: string } | null {
+  const authorization = request.headers.get("authorization");
+  if (authorization?.startsWith("Bearer ")) {
+    return verifySessionToken(authorization.slice(7), env);
+  }
   const cookie = request.headers.get("cookie") ?? "";
   const match = cookie.match(/(?:^|;\s*)bs_session=([^;]+)/);
   if (!match) return null;
+  return verifySessionToken(match[1], env);
+}
+
+function verifySessionToken(token: string, env: unknown): { email: string; name: string } | null {
   try {
-    const email = Buffer.from(match[1], "base64").toString("utf8");
-    if (!email) return null;
-    return { email, name: email.split("@")[0] };
+    const [encoded, signature] = token.split(".");
+    if (!encoded || !signature) return null;
+    const expected = crypto.createHmac("sha256", getSessionSecret(env)).update(encoded).digest("base64url");
+    const actualBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expected);
+    if (actualBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return null;
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as { email?: string; name?: string };
+    if (!payload.email) return null;
+    return { email: payload.email, name: payload.name || payload.email.split("@")[0] };
   } catch {
     return null;
   }
+}
+
+function createSessionToken(user: { email: string; name: string }, env: unknown) {
+  const encoded = Buffer.from(JSON.stringify(user)).toString("base64url");
+  const signature = crypto.createHmac("sha256", getSessionSecret(env)).update(encoded).digest("base64url");
+  return `${encoded}.${signature}`;
+}
+
+function getSessionSecret(env: unknown) {
+  const record = env && typeof env === "object" ? env as Record<string, unknown> : {};
+  const value =
+    record.SESSION_SECRET ??
+    process.env.SESSION_SECRET ??
+    record.SNIPPE_WEBHOOK_SECRET ??
+    process.env.SNIPPE_WEBHOOK_SECRET ??
+    record.GEMINI_API_KEY ??
+    process.env.GEMINI_API_KEY ??
+    record.OPENAI_API_KEY ??
+    process.env.OPENAI_API_KEY;
+  return typeof value === "string" && value ? value : "biasharasauti-local-development";
 }
 
 async function applyAction(action: ApiAction) {

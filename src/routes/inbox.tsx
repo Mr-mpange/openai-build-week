@@ -1,19 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { AppLayout, Avatar, StatusPill } from "@/components/layouts/AppLayout";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { fmtRelative, fmtTime, TZS } from "@/lib/format";
 import { toast } from "sonner";
 import {
   Search, Filter, Send, Paperclip, Mic, Sparkles, Play, Pause, FileText, Receipt,
   CreditCard, Phone, MoreVertical, ChevronLeft, MessageSquare,
 } from "lucide-react";
-import type { Message } from "@/data/backend-data";
+import type { Message } from "@/data/domain-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { aiService } from "@/services/backendServices";
 
 export const Route = createFileRoute("/inbox")({
+  loader: workspaceRouteLoader,
   head: () => ({
     meta: [
       { title: "Inbox — BiasharaSauti" },

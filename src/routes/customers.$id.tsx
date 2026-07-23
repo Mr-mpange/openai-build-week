@@ -1,8 +1,8 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, Avatar, StatusPill, toneFor } from "@/components/layouts/AppLayout";
 import {
   useCustomer, useCustomerConversations, useCustomerInvoices, useCustomerOrders,
-  useCustomerPayments, useCustomerQuotations, useWorkspaceStore,
+  useCustomerPayments, useCustomerQuotations, useWorkspaceStore, workspaceRouteLoader,
 } from "@/store/workspace";
 import { fmtDate, fmtRelative, TZS } from "@/lib/format";
 import { ArrowLeft, Mail, MapPin, Phone, Sparkles, Tag, Users } from "lucide-react";
@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/customers/$id")({
+  loader: workspaceRouteLoader,
   head: ({ params }) => ({
     meta: [
       { title: `Customer ${params.id} — BiasharaSauti` },
@@ -23,11 +24,6 @@ export const Route = createFileRoute("/customers/$id")({
   notFoundComponent: () => (
     <AppLayout title="Customer not found"><div className="p-8 text-muted-foreground">This customer no longer exists. <Link to="/customers" className="text-primary">Back to customers</Link></div></AppLayout>
   ),
-  loader: ({ params }) => {
-    // We simply throw notFound if the id is empty; store is client-side
-    if (!params.id) throw notFound();
-    return null;
-  },
 });
 
 function CustomerDetail() {

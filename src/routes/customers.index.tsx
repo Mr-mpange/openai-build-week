@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, Avatar, StatusPill } from "@/components/layouts/AppLayout";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { fmtRelative, TZS } from "@/lib/format";
 import { useMemo, useState } from "react";
 import { Search, Plus, Filter, Users } from "lucide-react";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/customers/")({
+  loader: workspaceRouteLoader,
   head: () => ({
     meta: [
       { title: "Customers — BiasharaSauti" },

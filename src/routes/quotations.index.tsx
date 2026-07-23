@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor } from "@/components/layouts/AppLayout";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { fmtDate, TZS } from "@/lib/format";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Search, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/quotations/")({
+  loader: workspaceRouteLoader,
   head: () => ({
     meta: [
       { title: "Quotations — BiasharaSauti" },

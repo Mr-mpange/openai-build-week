@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useWorkspaceStore } from "@/store/workspace";
+import { hydrateWorkspace, useWorkspaceStore } from "@/store/workspace";
 import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/register")({
@@ -43,14 +43,16 @@ function RegisterPage() {
 
   const onSubmit = form.handleSubmit(async (values) => {
     setPending(true);
-    const res = await api.register(values.email, values.password);
+    const res = await api.register(values.name, values.email, values.password);
     setPending(false);
     if (!res.ok) {
       toast.error(res.error);
       return;
     }
+    api.setSession(res.token);
     login();
     setAuthUser(res.user);
+    await hydrateWorkspace(true);
     toast.success(`Welcome, ${res.user.name}`);
     navigate({ to: "/dashboard" });
   });

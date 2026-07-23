@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layouts/AppLayout";
+import { workspaceRouteLoader } from "@/store/workspace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Bot, Send, Sparkles, User } from "lucide-react";
@@ -7,6 +8,7 @@ import { useRef, useState } from "react";
 import { aiService } from "@/services/backendServices";
 
 export const Route = createFileRoute("/ai-assistant")({
+  loader: workspaceRouteLoader,
   head: () => ({
     meta: [
       { title: "AI Assistant — BiasharaSauti" },

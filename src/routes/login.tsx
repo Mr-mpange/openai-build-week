@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useWorkspaceStore } from "@/store/workspace";
+import { hydrateWorkspace, useWorkspaceStore } from "@/store/workspace";
 import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/login")({
@@ -52,8 +52,10 @@ function LoginPage() {
       return;
     }
     setSuccess(true);
+    api.setSession(res.token);
     login();
     setAuthUser(res.user);
+    await hydrateWorkspace(true);
     toast.success(`Welcome back, ${res.user.name}!`);
     setTimeout(() => navigate({ to: "/dashboard" }), 500);
   });

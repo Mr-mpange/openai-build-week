@@ -9,10 +9,11 @@ import { Switch } from "@/components/ui/switch";
 import { Radio, Bot, Phone, CreditCard, Mail, MessageSquare, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import type { AppState, IntegrationStatus, IntegrationKey } from "@/lib/backend-types";
 
 export const Route = createFileRoute("/settings")({
+  loader: workspaceRouteLoader,
   head: () => ({
     meta: [
       { title: "Settings — BiasharaSauti" },

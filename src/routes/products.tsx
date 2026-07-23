@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layouts/AppLayout";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { TZS } from "@/lib/format";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,10 @@ import {
 } from "@/components/ui/sheet";
 import { Package, Plus, Search, Grid, Rows, AlertTriangle, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import type { Product } from "@/data/backend-data";
+import type { Product } from "@/data/domain-types";
 
 export const Route = createFileRoute("/products")({
+  loader: workspaceRouteLoader,
   head: () => ({
     meta: [
       { title: "Products — BiasharaSauti" },

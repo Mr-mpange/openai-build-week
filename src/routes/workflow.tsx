@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -12,6 +12,7 @@ import { TZS } from "@/lib/format";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/workflow")({
+  loader: workspaceRouteLoader,
   head: () => ({
     meta: [
       { title: "Guided Workflow — BiasharaSauti" },

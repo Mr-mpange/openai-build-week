@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layouts/AppLayout";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { TZS } from "@/lib/format";
 import { useMemo, useState } from "react";
 import {
@@ -9,6 +9,7 @@ import {
 } from "recharts";
 
 export const Route = createFileRoute("/analytics")({
+  loader: workspaceRouteLoader,
   head: () => ({
     meta: [
       { title: "Analytics — BiasharaSauti" },

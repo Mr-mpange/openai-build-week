@@ -100,7 +100,7 @@ Set `SNIPPE_API_KEY` and `SNIPPE_WEBHOOK_SECRET` to enable live mobile-money pay
 
 - `src/routes/` - file-based TanStack routes
 - `src/components/` - shared UI and layout components
-- `src/data/` - application data and TypeScript models
-- `src/store/` - local workspace state
+- `src/data/` - shared domain types
+- `src/store/` - backend-hydrated workspace state
 - `src/lib/` - shared utilities
 - `backend.ts` - Cloud Run entrypoint

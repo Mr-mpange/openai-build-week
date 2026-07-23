@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout, Avatar, StatusPill } from "@/components/layouts/AppLayout";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +11,10 @@ import {
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { TeamMember } from "@/data/backend-data";
+import type { TeamMember } from "@/data/domain-types";
 
 export const Route = createFileRoute("/team")({
+  loader: workspaceRouteLoader,
   head: () => ({
     meta: [
       { title: "Team — BiasharaSauti" },

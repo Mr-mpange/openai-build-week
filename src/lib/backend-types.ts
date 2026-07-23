@@ -12,7 +12,7 @@ import type {
   Product,
   Quotation,
   TeamMember,
-} from "@/data/backend-data";
+} from "@/data/domain-types";
 
 export type AppState = {
   customers: Customer[];

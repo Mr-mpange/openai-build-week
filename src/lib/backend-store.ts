@@ -3,16 +3,6 @@ import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import {
-  activityLogsData,
-  automationsData,
-  conversationsData,
-  customersData,
-  invoicesData,
-  ordersData,
-  paymentsData,
-  productsData,
-  quotationsData,
-  teamData,
   type ActivityLog,
   type Automation,
   type Conversation,
@@ -26,29 +16,13 @@ import {
   type Product,
   type Quotation,
   type TeamMember,
-} from "@/data/backend-data";
+} from "@/data/domain-types";
 import type { AppState, AddAutomationInput, AddCustomerInput, AddInvoiceInput, AddMemberInput, AddOrderInput, AddProductInput, AddQuotationInput } from "./backend-types";
 import type { IntegrationStatus } from "./backend-types";
 
 const DB_DIR = path.join(process.cwd(), ".data");
 const DB_FILE = path.join(DB_DIR, "biasharasauti-db.json");
 const dbScopeStorage = new AsyncLocalStorage<string>();
-
-const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
-
-const demoState = (): AppState => ({
-  customers: clone(customersData),
-  products: clone(productsData),
-  orders: clone(ordersData),
-  quotations: clone(quotationsData),
-  invoices: clone(invoicesData),
-  payments: clone(paymentsData),
-  conversations: clone(conversationsData),
-  team: clone(teamData),
-  automations: clone(automationsData),
-  activity: clone(activityLogsData),
-  integrations: detectIntegrations(),
-});
 
 const emptyState = (): AppState => ({
   customers: [],
@@ -94,8 +68,7 @@ async function ensureFile(scope: string) {
   try {
     await readFile(file, "utf8");
   } catch {
-    const state = scope === "shared" ? demoState() : emptyState();
-    await writeFile(file, JSON.stringify({ version: 1, ...state }, null, 2), "utf8");
+    await writeFile(file, JSON.stringify({ version: 1, ...emptyState() }, null, 2), "utf8");
   }
 }
 
@@ -119,7 +92,7 @@ export async function saveDb(db: DbFile, scope = "shared") {
 
 export async function resetDb(scope = "shared") {
   const effectiveScope = scope === "shared" ? currentScope() : scope;
-  const db = { version: 1 as const, ...(effectiveScope === "shared" ? demoState() : emptyState()) };
+  const db = { version: 1 as const, ...emptyState() };
   await saveDb(db, effectiveScope);
   return db;
 }

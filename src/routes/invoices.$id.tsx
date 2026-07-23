@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor } from "@/components/layouts/AppLayout";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { fmtDate, TZS } from "@/lib/format";
 import { ArrowLeft, Send, Download, Copy, CreditCard, Bell, Radio, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,12 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { useState } from "react";
-import type { PaymentMethod } from "@/data/backend-data";
+import type { PaymentMethod } from "@/data/domain-types";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/invoices/$id")({
+  loader: workspaceRouteLoader,
   head: ({ params }) => ({
     meta: [
       { title: `Invoice ${params.id} — BiasharaSauti` },

@@ -1,14 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor } from "@/components/layouts/AppLayout";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { fmtDate, fmtRelative, TZS } from "@/lib/format";
 import { ArrowLeft, Truck, CheckCircle2, Package, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { OrderStatus } from "@/data/backend-data";
+import type { OrderStatus } from "@/data/domain-types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/orders/$id")({
+  loader: workspaceRouteLoader,
   head: ({ params }) => ({
     meta: [
       { title: `Order ${params.id} — BiasharaSauti` },

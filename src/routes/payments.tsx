@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor } from "@/components/layouts/AppLayout";
-import { useWorkspaceStore } from "@/store/workspace";
+import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { fmtDate, TZS } from "@/lib/format";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { CreditCard, Search, TrendingUp, AlertTriangle, XCircle, Clock } from "lucide-react";
 
 export const Route = createFileRoute("/payments")({
+  loader: workspaceRouteLoader,
   head: () => ({
     meta: [
       { title: "Payments — BiasharaSauti" },
