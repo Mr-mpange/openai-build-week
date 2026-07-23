@@ -83,7 +83,7 @@ function RegisterPage() {
             <UserPlus className="h-3.5 w-3.5" />
             Self signup
           </div>
-          <h1 className="mt-4 text-2xl font-semibold tracking-tight">Create your account</h1>
+          <h1 className="mt-4 text-2xl font-semibold tracking-tight">Create account</h1>
           <p className="text-sm text-muted-foreground mt-1">Register now and use the live BiasharaSauti backend.</p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
