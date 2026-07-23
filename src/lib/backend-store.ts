@@ -36,7 +36,7 @@ const dbScopeStorage = new AsyncLocalStorage<string>();
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 
-const baseState = (): AppState => ({
+const demoState = (): AppState => ({
   customers: clone(customersData),
   products: clone(productsData),
   orders: clone(ordersData),
@@ -47,6 +47,20 @@ const baseState = (): AppState => ({
   team: clone(teamData),
   automations: clone(automationsData),
   activity: clone(activityLogsData),
+  integrations: detectIntegrations(),
+});
+
+const emptyState = (): AppState => ({
+  customers: [],
+  products: [],
+  orders: [],
+  quotations: [],
+  invoices: [],
+  payments: [],
+  conversations: [],
+  team: [],
+  automations: [],
+  activity: [],
   integrations: detectIntegrations(),
 });
 
@@ -80,7 +94,8 @@ async function ensureFile(scope: string) {
   try {
     await readFile(file, "utf8");
   } catch {
-    await writeFile(file, JSON.stringify({ version: 1, ...baseState() }, null, 2), "utf8");
+    const state = scope === "shared" ? demoState() : emptyState();
+    await writeFile(file, JSON.stringify({ version: 1, ...state }, null, 2), "utf8");
   }
 }
 
@@ -104,7 +119,7 @@ export async function saveDb(db: DbFile, scope = "shared") {
 
 export async function resetDb(scope = "shared") {
   const effectiveScope = scope === "shared" ? currentScope() : scope;
-  const db = { version: 1 as const, ...baseState() };
+  const db = { version: 1 as const, ...(effectiveScope === "shared" ? demoState() : emptyState()) };
   await saveDb(db, effectiveScope);
   return db;
 }
