@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 import {
   activityLogsData,
@@ -31,6 +32,7 @@ import type { IntegrationStatus } from "./backend-types";
 
 const DB_DIR = path.join(process.cwd(), ".data");
 const DB_FILE = path.join(DB_DIR, "biasharasauti-db.json");
+const dbScopeStorage = new AsyncLocalStorage<string>();
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 
@@ -50,7 +52,7 @@ const baseState = (): AppState => ({
 
 type DbFile = AppState & { version: 1 };
 
-let cache: DbFile | null = null;
+const cache = new Map<string, DbFile>();
 
 const uid = (p: string) => `${p}-${Math.random().toString(36).slice(2, 8)}`;
 const nextNum = (list: { number?: string }[], prefix: string) => {
@@ -59,32 +61,51 @@ const nextNum = (list: { number?: string }[], prefix: string) => {
   return `${prefix}-${max + 1}`;
 };
 
-async function ensureFile() {
+function dbFilePath(scope: string) {
+  const safeScope = scope.replace(/[^a-zA-Z0-9._-]/g, "_").toLowerCase();
+  return safeScope ? path.join(DB_DIR, `biasharasauti-db-${safeScope}.json`) : DB_FILE;
+}
+
+export function runWithDbScope<T>(scope: string, fn: () => Promise<T>) {
+  return dbScopeStorage.run(scope, fn);
+}
+
+function currentScope() {
+  return dbScopeStorage.getStore() ?? "shared";
+}
+
+async function ensureFile(scope: string) {
   await mkdir(DB_DIR, { recursive: true });
+  const file = dbFilePath(scope);
   try {
-    await readFile(DB_FILE, "utf8");
+    await readFile(file, "utf8");
   } catch {
-    await writeFile(DB_FILE, JSON.stringify({ version: 1, ...baseState() }, null, 2), "utf8");
+    await writeFile(file, JSON.stringify({ version: 1, ...baseState() }, null, 2), "utf8");
   }
 }
 
-export async function loadDb(): Promise<DbFile> {
-  if (cache) return cache;
-  await ensureFile();
-  const raw = await readFile(DB_FILE, "utf8");
-  cache = JSON.parse(raw) as DbFile;
-  return cache;
+export async function loadDb(scope = "shared"): Promise<DbFile> {
+  const effectiveScope = scope === "shared" ? currentScope() : scope;
+  const cached = cache.get(effectiveScope);
+  if (cached) return cached;
+  await ensureFile(effectiveScope);
+  const raw = await readFile(dbFilePath(effectiveScope), "utf8");
+  const db = JSON.parse(raw) as DbFile;
+  cache.set(effectiveScope, db);
+  return db;
 }
 
-export async function saveDb(db: DbFile) {
-  cache = db;
-  await ensureFile();
-  await writeFile(DB_FILE, JSON.stringify(db, null, 2), "utf8");
+export async function saveDb(db: DbFile, scope = "shared") {
+  const effectiveScope = scope === "shared" ? currentScope() : scope;
+  cache.set(effectiveScope, db);
+  await ensureFile(effectiveScope);
+  await writeFile(dbFilePath(effectiveScope), JSON.stringify(db, null, 2), "utf8");
 }
 
-export async function resetDb() {
+export async function resetDb(scope = "shared") {
+  const effectiveScope = scope === "shared" ? currentScope() : scope;
   const db = { version: 1 as const, ...baseState() };
-  await saveDb(db);
+  await saveDb(db, effectiveScope);
   return db;
 }
 

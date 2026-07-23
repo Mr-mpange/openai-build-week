@@ -29,6 +29,7 @@ import {
   updateQuotationStatus,
   upsertMessage,
   runAutomation,
+  runWithDbScope,
 } from "./lib/backend-store";
 import type { AiRequest, AiResponse, ApiAction } from "./lib/backend-types";
 
@@ -121,71 +122,74 @@ export default {
 
 async function handleApi(request: Request, env: unknown): Promise<Response> {
   const url = new URL(request.url);
+  const session = readSession(request);
+  const scope = session?.email ?? "shared";
   try {
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders(request) });
-    }
-    if (request.method === "GET" && url.pathname === "/api/bootstrap") {
-      return withCors(request, Response.json(await bootstrapState()));
-    }
-    if (request.method === "GET" && url.pathname === "/api/me") {
-      const db = await loadDb();
-      const session = readSession(request);
-      const user = session ? { name: session.name, email: session.email } : null;
-      return withCors(request, Response.json({ user, workspace: db.team[0] ?? null }));
-    }
-    if (request.method === "POST" && url.pathname === "/api/login") {
-      const { email, password } = await request.json() as { email?: string; password?: string };
-      if (!email || !password) return withCors(request, Response.json({ ok: false, error: "Email and password are required" }, { status: 400 }));
-      const headers = new Headers({ "content-type": "application/json" });
-      headers.append("set-cookie", `bs_session=${Buffer.from(email ?? "").toString("base64")}; Path=/; HttpOnly; SameSite=Lax`);
-      return withCors(request, new Response(JSON.stringify({ ok: true, token: "session", user: { name: email.split("@")[0], email } }), { headers }));
-    }
-    if (request.method === "POST" && url.pathname === "/api/register") {
-      const { email, password } = await request.json() as { email?: string; password?: string };
-      if (!email || !password) return withCors(request, Response.json({ ok: false, error: "Email and password are required" }, { status: 400 }));
-      const headers = new Headers({ "content-type": "application/json" });
-      headers.append("set-cookie", `bs_session=${Buffer.from(email ?? "").toString("base64")}; Path=/; HttpOnly; SameSite=Lax`);
-      return withCors(request, new Response(JSON.stringify({ ok: true, token: "session", user: { name: email.split("@")[0], email } }), { headers }));
-    }
-    if (request.method === "POST" && url.pathname === "/api/logout") {
-      const headers = new Headers({ "content-type": "application/json" });
-      headers.append("set-cookie", "bs_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
-      return withCors(request, new Response(JSON.stringify({ ok: true }), { headers }));
-    }
-    if (request.method === "POST" && url.pathname === "/api/action") {
-      const action = await request.json() as ApiAction;
-      const db = await applyAction(action);
-      return withCors(request, Response.json(db));
-    }
-    if (request.method === "POST" && url.pathname === "/api/payments/link") {
-      const { invoiceId } = await request.json() as { invoiceId?: string };
-      if (!invoiceId) return withCors(request, Response.json({ ok: false, error: "invoiceId is required" }, { status: 400 }));
-      const created = await createSnippePaymentLink(invoiceId, env);
-      const result = await attachInvoicePaymentLink(invoiceId, created.url);
-      return withCors(request, Response.json({ ok: true, invoice: result.invoice }));
-    }
-    if (request.method === "POST" && url.pathname === "/api/webhooks/snippe") {
-      const rawBody = await request.text();
-      const event = verifySnippeWebhook(request, rawBody, env);
-      if (event.type === "payment.completed") {
-        const invoiceId = String(event.data?.metadata?.invoice_id ?? event.data?.metadata?.order_id ?? event.data?.reference ?? "");
-        const amount = Number(event.data?.amount?.value ?? 0);
-        const reference = String(event.data?.reference ?? event.id ?? "");
-        if (!invoiceId || !amount || !reference) {
-          return withCors(request, Response.json({ ok: false, error: "invoiceId, amount, and reference are required" }, { status: 400 }));
-        }
-        const result = await markInvoicePaidByWebhook(invoiceId, amount, reference, "snippe");
-        return withCors(request, Response.json({ ok: true, payment: result.payment }));
+    return await runWithDbScope(scope, async () => {
+      if (request.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: corsHeaders(request) });
       }
-      return withCors(request, Response.json({ ok: true }));
-    }
-    if (request.method === "POST" && url.pathname === "/api/ai") {
-      const body = await request.json() as AiRequest;
-      const result = await handleAi(body, env);
-      return withCors(request, Response.json(result));
-    }
-    return withCors(request, new Response("Not found", { status: 404 }));
+      if (request.method === "GET" && url.pathname === "/api/bootstrap") {
+        return withCors(request, Response.json(await bootstrapState()));
+      }
+      if (request.method === "GET" && url.pathname === "/api/me") {
+        const db = await loadDb();
+        const user = session ? { name: session.name, email: session.email } : null;
+        return withCors(request, Response.json({ user, workspace: db.team[0] ?? null }));
+      }
+      if (request.method === "POST" && url.pathname === "/api/login") {
+        const { email, password } = await request.json() as { email?: string; password?: string };
+        if (!email || !password) return withCors(request, Response.json({ ok: false, error: "Email and password are required" }, { status: 400 }));
+        const headers = new Headers({ "content-type": "application/json" });
+        headers.append("set-cookie", `bs_session=${Buffer.from(email ?? "").toString("base64")}; Path=/; HttpOnly; SameSite=Lax`);
+        return withCors(request, new Response(JSON.stringify({ ok: true, token: "session", user: { name: email.split("@")[0], email } }), { headers }));
+      }
+      if (request.method === "POST" && url.pathname === "/api/register") {
+        const { email, password } = await request.json() as { email?: string; password?: string };
+        if (!email || !password) return withCors(request, Response.json({ ok: false, error: "Email and password are required" }, { status: 400 }));
+        const headers = new Headers({ "content-type": "application/json" });
+        headers.append("set-cookie", `bs_session=${Buffer.from(email ?? "").toString("base64")}; Path=/; HttpOnly; SameSite=Lax`);
+        return withCors(request, new Response(JSON.stringify({ ok: true, token: "session", user: { name: email.split("@")[0], email } }), { headers }));
+      }
+      if (request.method === "POST" && url.pathname === "/api/logout") {
+        const headers = new Headers({ "content-type": "application/json" });
+        headers.append("set-cookie", "bs_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+        return withCors(request, new Response(JSON.stringify({ ok: true }), { headers }));
+      }
+      if (request.method === "POST" && url.pathname === "/api/action") {
+        const action = await request.json() as ApiAction;
+        const db = await applyAction(action);
+        return withCors(request, Response.json(db));
+      }
+      if (request.method === "POST" && url.pathname === "/api/payments/link") {
+        const { invoiceId } = await request.json() as { invoiceId?: string };
+        if (!invoiceId) return withCors(request, Response.json({ ok: false, error: "invoiceId is required" }, { status: 400 }));
+        const created = await createSnippePaymentLink(invoiceId, env);
+        const result = await attachInvoicePaymentLink(invoiceId, created.url);
+        return withCors(request, Response.json({ ok: true, invoice: result.invoice }));
+      }
+      if (request.method === "POST" && url.pathname === "/api/webhooks/snippe") {
+        const rawBody = await request.text();
+        const event = verifySnippeWebhook(request, rawBody, env);
+        if (event.type === "payment.completed") {
+          const invoiceId = String(event.data?.metadata?.invoice_id ?? event.data?.metadata?.order_id ?? event.data?.reference ?? "");
+          const amount = Number(event.data?.amount?.value ?? 0);
+          const reference = String(event.data?.reference ?? event.id ?? "");
+          if (!invoiceId || !amount || !reference) {
+            return withCors(request, Response.json({ ok: false, error: "invoiceId, amount, and reference are required" }, { status: 400 }));
+          }
+          const result = await markInvoicePaidByWebhook(invoiceId, amount, reference, "snippe");
+          return withCors(request, Response.json({ ok: true, payment: result.payment }));
+        }
+        return withCors(request, Response.json({ ok: true }));
+      }
+      if (request.method === "POST" && url.pathname === "/api/ai") {
+        const body = await request.json() as AiRequest;
+        const result = await handleAi(body, env);
+        return withCors(request, Response.json(result));
+      }
+      return withCors(request, new Response("Not found", { status: 404 }));
+    });
   } catch (error) {
     console.error(error);
     return withCors(request, Response.json({ error: error instanceof Error ? error.message : "Server error" }, { status: 500 }));
@@ -531,7 +535,7 @@ function readSession(request: Request): { email: string; name: string } | null {
   try {
     const email = Buffer.from(match[1], "base64").toString("utf8");
     if (!email) return null;
-    return { email, name: "Grace Mollel" };
+    return { email, name: email.split("@")[0] };
   } catch {
     return null;
   }
