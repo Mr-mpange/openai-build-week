@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/layouts/AppLayout";
-import { revenueSeries } from "@/data/backend-data";
 import { useWorkspaceStore } from "@/store/workspace";
 import { TZS } from "@/lib/format";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, Legend,
@@ -26,32 +25,33 @@ const chartColors = ["oklch(0.72 0.15 220)", "oklch(0.78 0.14 200)", "oklch(0.62
 
 function Analytics() {
   const [range, setRange] = useState<(typeof ranges)[number]>("Last 30 days");
-  const { products, customers, payments } = useWorkspaceStore();
+  const { products, customers, payments, orders, quotations, invoices, conversations } = useWorkspaceStore();
+  const revenueSeries = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => {
+        const end = Date.now() - i * 86400000;
+        const start = end - 86400000;
+        return {
+          date: new Date(end).toISOString(),
+          revenue: payments.filter((p) => p.status === "successful" && new Date(p.date).getTime() >= start && new Date(p.date).getTime() < end).reduce((s, p) => s + p.amount, 0),
+          orders: orders.filter((o) => new Date(o.createdAt).getTime() >= start && new Date(o.createdAt).getTime() < end).length,
+        };
+      }).reverse(),
+    [orders, payments],
+  );
   const funnel = [
-    { stage: "Conversations", value: 312 },
-    { stage: "Quotations sent", value: 128 },
-    { stage: "Accepted", value: 74 },
-    { stage: "Invoices paid", value: 61 },
+    { stage: "Conversations", value: conversations.length },
+    { stage: "Quotations sent", value: quotations.filter((q) => q.status === "sent" || q.status === "viewed").length },
+    { stage: "Accepted", value: quotations.filter((q) => q.status === "accepted").length },
+    { stage: "Invoices paid", value: invoices.filter((i) => i.status === "paid").length },
   ];
-  const source = [
-    { name: "WhatsApp", value: 68 },
-    { name: "Referral", value: 18 },
-    { name: "Website", value: 10 },
-    { name: "Voice", value: 4 },
-  ];
-  const language = [
-    { name: "Swahili", value: 62 },
-    { name: "English", value: 24 },
-    { name: "Mixed", value: 14 },
-  ];
-  const methodShare = [
-    { name: "M-Pesa", value: 46 }, { name: "Airtel Money", value: 22 }, { name: "Mixx by Yas", value: 12 },
-    { name: "Bank", value: 12 }, { name: "Cash", value: 6 }, { name: "Card", value: 2 },
-  ];
+  const source = Array.from(new Set(customers.map((c) => c.source))).map((name) => ({ name, value: customers.filter((c) => c.source === name).length }));
+  const language = Array.from(new Set(customers.map((c) => c.language))).map((name) => ({ name: name === "sw" ? "Swahili" : name === "en" ? "English" : "Mixed", value: customers.filter((c) => c.language === name).length }));
+  const methodShare = Array.from(new Set(payments.map((p) => p.method))).map((name) => ({ name, value: payments.filter((p) => p.method === name).length }));
   const topCustomers = [...customers].sort((a, b) => b.totalSpend - a.totalSpend).slice(0, 6).map((c) => ({ name: c.name, value: c.totalSpend }));
-  const topProducts = products.slice(0, 6).map((p, i) => ({ name: p.name, value: 320000 - i * 40000 + Math.round(Math.random() * 60000) }));
-  const outstandingTrend = revenueSeries.map((d, i) => ({ date: d.date, outstanding: 1400000 - i * 6000 + Math.round(Math.sin(i / 3) * 80000) }));
-  const response = revenueSeries.map((d, i) => ({ date: d.date, minutes: 8 + Math.round(Math.sin(i / 4) * 2 + (Math.random() - 0.5) * 2) }));
+  const topProducts = products.map((p) => ({ name: p.name, value: orders.flatMap((o) => o.items).filter((it) => it.productId === p.id).reduce((s, it) => s + it.qty * it.price, 0) })).filter((p) => p.value > 0).sort((a, b) => b.value - a.value).slice(0, 6);
+  const outstandingTrend = revenueSeries.map((d) => ({ date: d.date, outstanding: invoices.reduce((s, i) => s + (i.total - i.paid), 0) }));
+  const response = revenueSeries.map((d, i) => ({ date: d.date, minutes: conversations.length > 0 ? Math.max(1, Math.round(conversations.reduce((s, c) => s + (c.unread > 0 ? 8 : 4), 0) / conversations.length)) : i + 1 }));
 
   return (
     <AppLayout title="Analytics" subtitle="Business performance">

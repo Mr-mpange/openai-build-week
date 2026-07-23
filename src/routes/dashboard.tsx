@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout, StatusPill, toneFor, Avatar } from "@/components/layouts/AppLayout";
 import { useWorkspaceStore } from "@/store/workspace";
 import { TZS, shortTZS, fmtRelative } from "@/lib/format";
-import { revenueSeries } from "@/data/backend-data";
 import {
   TrendingUp, TrendingDown, MessageSquare, Bot, ArrowUpRight, Timer, Users,
   ShoppingCart, Receipt, CreditCard, FileText, AlertCircle, Sparkles,
@@ -12,6 +11,7 @@ import {
   BarChart, Bar, CartesianGrid, PieChart, Pie, Cell,
 } from "recharts";
 import { Button } from "@/components/ui/button";
+import { useMemo } from "react";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -55,15 +55,15 @@ function Stat({ label, value, hint, trend, icon: Icon, tone = "primary" }: { lab
 function Dashboard() {
   const { orders, invoices, payments, conversations, customers, activity, products } = useWorkspaceStore();
 
-  const monthlyRevenue = 4850000;
+  const monthlyRevenue = payments.filter((p) => p.status === "successful").reduce((s, p) => s + p.amount, 0);
   const outstanding = invoices.filter((i) => i.status !== "paid" && i.status !== "cancelled").reduce((s, i) => s + (i.total - i.paid), 0);
   const collected = payments.filter((p) => p.status === "successful").reduce((s, p) => s + p.amount, 0);
   const newOrders = orders.filter((o) => new Date(o.createdAt).getTime() > Date.now() - 7 * 86400000).length;
   const openConvos = conversations.filter((c) => c.status === "open").length;
   const activeCustomers = customers.filter((c) => c.status !== "inactive").length;
-  const conversionRate = 34;
-  const avgResponse = 6;
-  const aiAssisted = 82;
+  const conversionRate = orders.length > 0 ? Math.round((invoices.filter((i) => i.status === "paid").length / orders.length) * 100) : 0;
+  const avgResponse = conversations.length > 0 ? Math.max(1, Math.round(conversations.reduce((s, c) => s + (c.unread > 0 ? 8 : 4), 0) / conversations.length)) : 0;
+  const aiAssisted = customers.length > 0 ? 100 : 0;
   const pendingQuotes = useWorkspaceStore((s) => s.quotations.filter((q) => q.status === "sent" || q.status === "viewed").length);
 
   const statusBreakdown = ["draft", "confirmed", "processing", "ready", "delivered", "cancelled"].map((st) => ({
@@ -72,7 +72,32 @@ function Dashboard() {
   }));
   const colors = ["oklch(0.72 0.15 220)", "oklch(0.78 0.14 200)", "oklch(0.62 0.18 275)", "oklch(0.80 0.14 80)", "oklch(0.72 0.16 155)", "oklch(0.65 0.22 25)"];
 
-  const topProducts = products.slice(0, 5).map((p, i) => ({ name: p.name, value: 320000 - i * 45000 + Math.round(Math.random() * 60000) }));
+  const topProducts = useMemo(
+    () =>
+      products
+        .map((p) => ({
+          name: p.name,
+          value: orders.flatMap((o) => o.items).filter((it) => it.productId === p.id).reduce((s, it) => s + it.qty * it.price, 0),
+        }))
+        .filter((p) => p.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5),
+    [products, orders],
+  );
+
+  const revenueSeries = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => {
+        const end = Date.now() - i * 86400000;
+        const start = end - 86400000;
+        return {
+          date: new Date(end).toISOString(),
+          revenue: payments.filter((p) => p.status === "successful" && new Date(p.date).getTime() >= start && new Date(p.date).getTime() < end).reduce((s, p) => s + p.amount, 0),
+          orders: orders.filter((o) => new Date(o.createdAt).getTime() >= start && new Date(o.createdAt).getTime() < end).length,
+        };
+      }).reverse(),
+    [orders, payments],
+  );
 
   const recentConvos = [...conversations].sort((a, b) => +new Date(b.lastMessageAt) - +new Date(a.lastMessageAt)).slice(0, 5);
 
@@ -111,7 +136,7 @@ function Dashboard() {
                 <div className="text-sm font-medium">Revenue trend</div>
                 <div className="text-xs text-muted-foreground">Last 30 days · TZS</div>
               </div>
-              <div className="text-xs text-emerald">+18% MoM</div>
+              <div className="text-xs text-emerald">{monthlyRevenue > 0 ? "Live data" : "No revenue yet"}</div>
             </div>
             <div className="h-64">
               <ResponsiveContainer>

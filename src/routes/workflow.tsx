@@ -23,21 +23,8 @@ export const Route = createFileRoute("/workflow")({
   component: Workflow,
 });
 
-const steps = [
-  { icon: MessageSquare, title: "WhatsApp message received", body: "Amina Mushi: “Habari, nahitaji crate 10 za maji kwa event ya Jumamosi. Delivery iwe Sinza.”" },
-  { icon: Bot, title: "AI detects intent & products", body: "Intent: Purchase request · 10× Bottled Water Crate · Delivery: Sinza · Confidence 94%." },
-  { icon: Mic, title: "Voice note is transcribed", body: "“Nahitaji pia decoration package moja na delivery ifike kabla ya saa nne asubuhi.” Adds 1× Event Decoration Package." },
-  { icon: ShoppingCart, title: "Draft order is created", body: "Order ORD-1042 · TZS 660,000 · assigned to John Kimario." },
-  { icon: FileText, title: "Quotation is generated", body: "QUO-2081 sent via WhatsApp with 7-day validity." },
-  { icon: CheckCircle2, title: "Customer accepts quotation", body: "“Nimeikubali. Nitalipa deposit sasa hivi kupitia M-Pesa.”" },
-  { icon: Receipt, title: "Invoice is created", body: "INV-3120 issued for TZS 660,000, due in 3 days." },
-  { icon: CreditCard, title: "Payment is recorded", body: "M-Pesa deposit of TZS 300,000 reconciled. Balance TZS 360,000." },
-  { icon: BarChart3, title: "Dashboard metrics update", body: "Revenue, outstanding balance, and top-products chart refresh in real time." },
-  { icon: History, title: "Customer timeline complete", body: "Amina Mushi's profile now shows the full journey from chat to payment." },
-];
-
 function Workflow() {
-  const { workflowStep, setWorkflowStep, reset } = useWorkspaceStore();
+  const { workflowStep, setWorkflowStep, reset, customers, orders, quotations, invoices, payments } = useWorkspaceStore();
   const [autoplay, setAutoplay] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -53,6 +40,23 @@ function Workflow() {
 
   useEffect(() => { if (workflowStep >= steps.length - 1) setAutoplay(false); }, [workflowStep]);
 
+  const activeCustomer = customers[0];
+  const activeOrder = orders[0];
+  const activeQuotation = quotations[0];
+  const activeInvoice = invoices[0];
+  const activePayment = payments[0];
+  const steps = [
+    { icon: MessageSquare, title: "Customer activity received", body: activeCustomer ? `${activeCustomer.name}: ${activeCustomer.business ?? activeCustomer.phone}` : "No customer activity yet. Add a customer to start the flow." },
+    { icon: Bot, title: "AI detects intent & products", body: activeOrder ? `Latest order ${activeOrder.number} · ${activeOrder.items.map((it) => `${it.qty}× ${it.name}`).join(", ")}` : "No orders yet. Use the AI assistant or create an order." },
+    { icon: Mic, title: "Voice note is transcribed", body: activeCustomer ? `Language: ${activeCustomer.language === "sw" ? "Swahili" : activeCustomer.language === "en" ? "English" : "Mixed"} · Ready for voice parsing.` : "No voice notes yet." },
+    { icon: ShoppingCart, title: "Draft order is created", body: activeOrder ? `Order ${activeOrder.number} · TZS ${activeOrder.total.toLocaleString("en-US")}` : "No draft order yet." },
+    { icon: FileText, title: "Quotation is generated", body: activeQuotation ? `${activeQuotation.number} · TZS ${activeQuotation.total.toLocaleString("en-US")}` : "No quotation yet." },
+    { icon: CheckCircle2, title: "Customer accepts quotation", body: activeQuotation ? `Quotation status: ${activeQuotation.status}` : "No quotation acceptance yet." },
+    { icon: Receipt, title: "Invoice is created", body: activeInvoice ? `${activeInvoice.number} issued for TZS ${activeInvoice.total.toLocaleString("en-US")}` : "No invoice yet." },
+    { icon: CreditCard, title: "Payment is recorded", body: activePayment ? `${activePayment.reference} · TZS ${activePayment.amount.toLocaleString("en-US")}` : "No payment recorded yet." },
+    { icon: BarChart3, title: "Dashboard metrics update", body: "Metrics refresh from live workspace data." },
+    { icon: History, title: "Customer timeline complete", body: activeCustomer ? `${activeCustomer.name}'s profile shows the full journey from chat to payment.` : "Customer timeline will appear after activity exists." },
+  ];
   const S = steps[workflowStep];
 
   return (
@@ -107,12 +111,12 @@ function Workflow() {
               <div className="mt-8 rounded-2xl bg-muted/40 p-5 max-w-2xl">
                 <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Featured customer</div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-muted-foreground">Name:</span> Amina Mushi</div>
-                  <div><span className="text-muted-foreground">Business:</span> Amina Events & Supplies</div>
-                  <div><span className="text-muted-foreground">Phone:</span> +255 754 123 456</div>
-                  <div><span className="text-muted-foreground">Delivery:</span> Sinza · Saturday 10:00</div>
-                  <div><span className="text-muted-foreground">Quotation:</span> {TZS(660000)}</div>
-                  <div><span className="text-muted-foreground">Deposit:</span> {TZS(300000)} · M-Pesa</div>
+                  <div><span className="text-muted-foreground">Name:</span> {activeCustomer?.name ?? "No customer yet"}</div>
+                  <div><span className="text-muted-foreground">Business:</span> {activeCustomer?.business ?? "—"}</div>
+                  <div><span className="text-muted-foreground">Phone:</span> {activeCustomer?.phone ?? "—"}</div>
+                  <div><span className="text-muted-foreground">Delivery:</span> {activeOrder?.deliveryLocation ?? "—"}</div>
+                  <div><span className="text-muted-foreground">Quotation:</span> {activeQuotation ? TZS(activeQuotation.total) : "—"}</div>
+                  <div><span className="text-muted-foreground">Deposit:</span> {activePayment ? TZS(activePayment.amount) : "—"}</div>
                 </div>
               </div>
 
@@ -122,7 +126,7 @@ function Workflow() {
                 <Button variant="ghost" onClick={() => setAutoplay((a) => !a)}>{autoplay ? <><Pause className="h-4 w-4 mr-1.5" /> Pause auto-play</> : <><Play className="h-4 w-4 mr-1.5" /> Auto-play</>}</Button>
                 <div className="ml-auto flex gap-2">
                   <Link to="/inbox"><Button variant="ghost" size="sm">Open Inbox</Button></Link>
-                  <Link to="/customers/$id" params={{ id: "c1" }}><Button variant="ghost" size="sm">Amina's profile</Button></Link>
+                  <Link to="/customers/$id" params={{ id: activeCustomer?.id ?? "" }}><Button variant="ghost" size="sm">{activeCustomer ? `${activeCustomer.name}'s profile` : "No customer"}</Button></Link>
                 </div>
               </div>
             </div>
