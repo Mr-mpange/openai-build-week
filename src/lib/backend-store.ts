@@ -349,7 +349,12 @@ export async function markInvoicePaidByWebhook(invoiceId: string, amount: number
 
 export async function createCustomer(input: AddCustomerInput) {
   const db = await loadDb();
-  const customer: Customer = { ...input, id: uid("c"), createdAt: new Date().toISOString() };
+  const customer: Customer = {
+    ...input,
+    assignedTo: input.assignedTo || db.team[0]?.id || "",
+    id: uid("c"),
+    createdAt: new Date().toISOString(),
+  };
   db.customers = [customer, ...db.customers];
   await saveDb(db);
   return { db: publicState(db), customer };

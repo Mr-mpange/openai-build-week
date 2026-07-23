@@ -39,9 +39,10 @@ function CustomersPage() {
 
   const submit = () => {
     if (!form.name || !form.phone) return toast.error("Name and phone required");
+    const assignedTo = team[0]?.id ?? "";
     addCustomer({
       name: form.name, phone: form.phone, business: form.business, location: form.location,
-      status: "lead", tags: [], source: "Manual", assignedTo: "t2",
+      status: "lead", tags: [], source: "Manual", assignedTo,
       totalSpend: 0, outstanding: 0, lastInteraction: new Date().toISOString(), language: "sw",
     });
     toast.success("Customer added");

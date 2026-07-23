@@ -146,8 +146,8 @@ function Settings() {
 
           <TabsContent value="security" className="card-elevated rounded-2xl p-5 max-w-3xl space-y-4">
             <div className="flex items-center gap-2 text-sm"><ShieldCheck className="h-4 w-4 text-emerald" /> Two-factor authentication is recommended.</div>
-            <div className="flex justify-between items-center"><div><div className="text-sm font-medium">Reset sample data</div><div className="text-xs text-muted-foreground">Restore all sample customers, orders and payments to their original state.</div></div>
-              <Button variant="outline" onClick={() => { reset(); toast.success("Sample data reset"); }}>Reset</Button>
+            <div className="flex justify-between items-center"><div><div className="text-sm font-medium">Reset workspace</div><div className="text-xs text-muted-foreground">Restore this workspace to its initial state.</div></div>
+              <Button variant="outline" onClick={() => { reset(); toast.success("Workspace reset"); }}>Reset</Button>
             </div>
           </TabsContent>
 
