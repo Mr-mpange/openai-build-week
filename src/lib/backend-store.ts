@@ -3,6 +3,7 @@ import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 import crypto from "node:crypto";
 import { promisify } from "node:util";
+import { Firestore, type Transaction } from "@google-cloud/firestore";
 
 import {
   type ActivityLog,
@@ -25,8 +26,10 @@ import type { IntegrationStatus } from "./backend-types";
 const DB_DIR = path.join(process.cwd(), ".data");
 const DB_FILE = path.join(DB_DIR, "biasharasauti-db.json");
 const ACCOUNTS_FILE = path.join(DB_DIR, "biasharasauti-accounts.json");
-const dbScopeStorage = new AsyncLocalStorage<string>();
+type DbContext = { scope: string; transaction?: Transaction };
+const dbScopeStorage = new AsyncLocalStorage<DbContext>();
 const scrypt = promisify(crypto.scrypt);
+let firestoreClient: Firestore | null = null;
 
 const emptyState = (): AppState => ({
   customers: [],
@@ -61,11 +64,43 @@ function dbFilePath(scope: string) {
 }
 
 export function runWithDbScope<T>(scope: string, fn: () => Promise<T>) {
-  return dbScopeStorage.run(scope, fn);
+  return dbScopeStorage.run({ scope }, fn);
+}
+
+export function runWithDbTransaction<T>(scope: string, fn: () => Promise<T>) {
+  if (!usesFirestore()) return runWithDbScope(scope, fn);
+  return firestore().runTransaction((transaction) =>
+    dbScopeStorage.run({ scope, transaction }, fn),
+  );
 }
 
 function currentScope() {
-  return dbScopeStorage.getStore() ?? "shared";
+  return dbScopeStorage.getStore()?.scope ?? "shared";
+}
+
+function usesFirestore() {
+  return process.env.STORAGE_BACKEND === "firestore" || Boolean(process.env.K_SERVICE);
+}
+
+function firestore() {
+  if (!firestoreClient) {
+    firestoreClient = new Firestore({
+      projectId: process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT || "openai-week-build",
+    });
+  }
+  return firestoreClient;
+}
+
+function documentId(value: string) {
+  return crypto.createHash("sha256").update(value.trim().toLowerCase()).digest("hex");
+}
+
+function workspaceDocument(scope: string) {
+  return firestore().collection("workspaces").doc(documentId(scope));
+}
+
+function serializable<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 async function ensureFile(scope: string) {
@@ -80,6 +115,23 @@ async function ensureFile(scope: string) {
 
 export async function loadDb(scope = "shared"): Promise<DbFile> {
   const effectiveScope = scope === "shared" ? currentScope() : scope;
+  if (usesFirestore()) {
+    const ref = workspaceDocument(effectiveScope);
+    const transaction = dbScopeStorage.getStore()?.transaction;
+    const snapshot = transaction ? await transaction.get(ref) : await ref.get();
+    if (snapshot.exists) return snapshot.data() as DbFile;
+    const db = { version: 1 as const, ...emptyState() };
+    if (!transaction) {
+      try {
+        await ref.create(serializable(db));
+      } catch (error) {
+        if ((error as { code?: number }).code !== 6) throw error;
+        const created = await ref.get();
+        if (created.exists) return created.data() as DbFile;
+      }
+    }
+    return db;
+  }
   const cached = cache.get(effectiveScope);
   if (cached) return cached;
   await ensureFile(effectiveScope);
@@ -91,6 +143,13 @@ export async function loadDb(scope = "shared"): Promise<DbFile> {
 
 export async function saveDb(db: DbFile, scope = "shared") {
   const effectiveScope = scope === "shared" ? currentScope() : scope;
+  if (usesFirestore()) {
+    const ref = workspaceDocument(effectiveScope);
+    const transaction = dbScopeStorage.getStore()?.transaction;
+    if (transaction) transaction.set(ref, serializable(db));
+    else await ref.set(serializable(db));
+    return;
+  }
   cache.set(effectiveScope, db);
   await ensureFile(effectiveScope);
   await writeFile(dbFilePath(effectiveScope), JSON.stringify(db, null, 2), "utf8");
@@ -123,10 +182,6 @@ async function saveAccounts(accounts: Account[]) {
 
 export async function registerAccount(name: string, email: string, password: string) {
   const normalizedEmail = email.trim().toLowerCase();
-  const accounts = await loadAccounts();
-  if (accounts.some((account) => account.email === normalizedEmail)) {
-    throw new Error("An account with this email already exists");
-  }
   const salt = crypto.randomBytes(16).toString("hex");
   const passwordHash = Buffer.from(await scrypt(password, salt, 64) as Buffer).toString("hex");
   const account: Account = {
@@ -136,13 +191,28 @@ export async function registerAccount(name: string, email: string, password: str
     salt,
     createdAt: new Date().toISOString(),
   };
+  if (usesFirestore()) {
+    const ref = firestore().collection("accounts").doc(documentId(normalizedEmail));
+    await firestore().runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (snapshot.exists) throw new Error("An account with this email already exists");
+      transaction.create(ref, account);
+    });
+    return { name: account.name, email: account.email };
+  }
+  const accounts = await loadAccounts();
+  if (accounts.some((candidate) => candidate.email === normalizedEmail)) {
+    throw new Error("An account with this email already exists");
+  }
   await saveAccounts([...accounts, account]);
   return { name: account.name, email: account.email };
 }
 
 export async function authenticateAccount(email: string, password: string) {
   const normalizedEmail = email.trim().toLowerCase();
-  const account = (await loadAccounts()).find((candidate) => candidate.email === normalizedEmail);
+  const account = usesFirestore()
+    ? (await firestore().collection("accounts").doc(documentId(normalizedEmail)).get()).data() as Account | undefined
+    : (await loadAccounts()).find((candidate) => candidate.email === normalizedEmail);
   if (!account) return null;
   const actual = Buffer.from(await scrypt(password, account.salt, 64) as Buffer);
   const expected = Buffer.from(account.passwordHash, "hex");

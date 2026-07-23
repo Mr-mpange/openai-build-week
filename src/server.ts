@@ -32,6 +32,7 @@ import {
   upsertMessage,
   runAutomation,
   runWithDbScope,
+  runWithDbTransaction,
 } from "./lib/backend-store";
 import type { AiRequest, AiResponse, ApiAction, SummaryRequest, SummaryResponse } from "./lib/backend-types";
 
@@ -237,7 +238,7 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
         if (!action || typeof action !== "object" || typeof action.type !== "string") {
           throw new ApiError("Invalid workspace action", 400);
         }
-        const db = await applyAction(action);
+        const db = await runWithDbTransaction(session.email, () => applyAction(action));
         return withCors(request, Response.json(db));
       }
       if (request.method === "POST" && url.pathname === "/api/payments/link") {
@@ -245,7 +246,7 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
         const { invoiceId } = await readJson<{ invoiceId?: string }>(request);
         if (!invoiceId) return withCors(request, Response.json({ ok: false, error: "invoiceId is required" }, { status: 400 }));
         const created = await createSnippePaymentLink(invoiceId, session.email, request.url, env);
-        const result = await attachInvoicePaymentLink(invoiceId, created.url);
+        const result = await runWithDbTransaction(session.email, () => attachInvoicePaymentLink(invoiceId, created.url));
         return withCors(request, Response.json({ ok: true, invoice: result.invoice }));
       }
       if (request.method === "POST" && url.pathname === "/api/webhooks/snippe") {
@@ -260,7 +261,7 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
           if (!workspace || !invoiceId || !amount || !reference) {
             return withCors(request, Response.json({ ok: false, error: "workspace, invoiceId, amount, and reference are required" }, { status: 400 }));
           }
-          const result = await runWithDbScope(workspace, () => markInvoicePaidByWebhook(invoiceId, amount, reference, "snippe"));
+          const result = await runWithDbTransaction(workspace, () => markInvoicePaidByWebhook(invoiceId, amount, reference, "snippe"));
           return withCors(request, Response.json({ ok: true, payment: result.payment }));
         }
         return withCors(request, Response.json({ ok: true }));

@@ -6,6 +6,7 @@ BiasharaSauti is an AI business assistant for African SMEs. It turns WhatsApp ch
 
 - Frontend: static React app built with Vite and deployed to GitHub Pages
 - Backend: Node API deployed to Google Cloud Run
+- Database: Firestore Native in `us-central1`
 - API base URL: configured in the frontend through `VITE_API_BASE_URL`
 - Default backend URL: `https://biashara-sauti-api-840359086901.us-central1.run.app`
 
@@ -89,6 +90,8 @@ Deploy the backend with Cloud Run source deploy:
 gcloud run deploy biashara-sauti-api \
   --source . \
   --region us-central1 \
+  --service-account biashara-sauti-api@openai-week-build.iam.gserviceaccount.com \
+  --set-env-vars STORAGE_BACKEND=firestore \
   --allow-unauthenticated
 ```
 
