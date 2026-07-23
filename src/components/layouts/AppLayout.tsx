@@ -63,9 +63,13 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const logout = useWorkspaceStore((s) => s.logout);
+  const authUser = useWorkspaceStore((s) => s.authUser);
   const unread = useWorkspaceStore((s) =>
     s.conversations.reduce((acc, c) => acc + c.unread, 0),
   );
+  const displayName = authUser?.name ?? "Workspace User";
+  const displayEmail = authUser?.email ?? "Signed in";
+  const avatarText = initials(displayName);
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
@@ -110,11 +114,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="border-t border-sidebar-border p-3">
         <div className="flex items-center gap-3 px-2 py-2">
           <div className="h-9 w-9 rounded-full gradient-primary grid place-items-center text-sm font-semibold">
-            GM
+            {avatarText}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium truncate">Grace Mollel</div>
-            <div className="text-xs text-muted-foreground truncate">Owner · Workspace</div>
+            <div className="text-sm font-medium truncate">{displayName}</div>
+            <div className="text-xs text-muted-foreground truncate">{displayEmail}</div>
           </div>
           <Button
             size="icon"

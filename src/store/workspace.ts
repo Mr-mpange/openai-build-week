@@ -44,10 +44,12 @@ interface WorkspaceState {
   activity: ActivityLog[];
   integrations: Record<"openai" | "gemini" | "snippe" | "email" | "sms" | "whatsapp" | "mobileMoney", IntegrationStatus>;
   isAuthed: boolean;
+  authUser: { name: string; email: string } | null;
   workflowStep: number;
 
   login: () => void;
   logout: () => void;
+  setAuthUser: (user: { name: string; email: string } | null) => void;
   setWorkflowStep: (n: number) => void;
 
   addActivity: (a: Omit<ActivityLog, "id" | "at">) => void;
@@ -130,14 +132,16 @@ export const useWorkspaceStore = create<WorkspaceState>()(
     (set, get) => ({
       ...initial(),
       isAuthed: false,
+      authUser: null,
       workflowStep: 0,
 
       login: () => {
         set({ isAuthed: true });
       },
       logout: () => {
-        set({ isAuthed: false });
+        set({ isAuthed: false, authUser: null });
       },
+      setAuthUser: (authUser) => set({ authUser }),
       setWorkflowStep: (n) => set({ workflowStep: n }),
 
       addActivity: (a) =>
@@ -357,6 +361,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       // don't persist the seeded workspace too aggressively — keep reset predictable
       partialize: (s) => ({
         isAuthed: s.isAuthed,
+        authUser: s.authUser,
         workflowStep: s.workflowStep,
         customers: s.customers,
         products: s.products,

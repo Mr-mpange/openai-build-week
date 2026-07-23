@@ -34,6 +34,7 @@ function RegisterPage() {
   const [pending, setPending] = useState(false);
   const navigate = useNavigate();
   const login = useWorkspaceStore((s) => s.login);
+  const setAuthUser = useWorkspaceStore((s) => s.setAuthUser);
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -49,7 +50,8 @@ function RegisterPage() {
       return;
     }
     login();
-    toast.success(`Welcome, ${values.name}`);
+    setAuthUser(res.user);
+    toast.success(`Welcome, ${res.user.name}`);
     navigate({ to: "/dashboard" });
   });
 

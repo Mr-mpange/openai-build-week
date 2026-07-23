@@ -36,6 +36,7 @@ function LoginPage() {
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
   const login = useWorkspaceStore((s) => s.login);
+  const setAuthUser = useWorkspaceStore((s) => s.setAuthUser);
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -52,7 +53,8 @@ function LoginPage() {
     }
     setSuccess(true);
     login();
-    toast.success("Welcome back, Grace!");
+    setAuthUser(res.user);
+    toast.success(`Welcome back, ${res.user.name}!`);
     setTimeout(() => navigate({ to: "/dashboard" }), 500);
   });
 
