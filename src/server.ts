@@ -550,7 +550,12 @@ async function createSnippePaymentLink(invoiceId: string, workspace: string, req
   if (!customer) throw new ApiError("Invoice customer not found", 404);
   const amount = Math.max(0, invoice.total - invoice.paid);
   if (amount < 500) throw new ApiError("Snippe requires an outstanding amount of at least TZS 500", 400);
-  const webhookUrl = `${new URL(requestUrl).origin}/api/webhooks/snippe`;
+  const incomingUrl = new URL(requestUrl);
+  const backendPublicUrl = (
+    process.env.BACKEND_PUBLIC_URL ??
+    `https://${incomingUrl.host}`
+  ).replace(/\/$/, "");
+  const webhookUrl = `${backendPublicUrl}/api/webhooks/snippe`;
   const frontendBase = (process.env.FRONTEND_BASE_URL ?? "https://mr-mpange.github.io/openai-build-week").replace(/\/$/, "");
 
   const response = await fetch(`${getSnippeBaseUrl(env)}/api/v1/sessions`, {

@@ -55,7 +55,7 @@ gcloud run services update "$SERVICE" \
   --project "$PROJECT_ID" \
   --region "$REGION" \
   --update-secrets "GEMINI_API_KEY=biasharasauti-gemini-api-key:latest,SNIPPE_WEBHOOK_SECRET=biasharasauti-snippe-webhook-secret:latest" \
-  --update-env-vars "ALLOWED_ORIGINS=https://mr-mpange.github.io,FRONTEND_BASE_URL=https://mr-mpange.github.io/openai-build-week" \
+  --update-env-vars "ALLOWED_ORIGINS=https://mr-mpange.github.io,FRONTEND_BASE_URL=https://mr-mpange.github.io/openai-build-week,BACKEND_PUBLIC_URL=https://biashara-sauti-api-840359086901.us-central1.run.app" \
   --quiet
 
 echo "Cloud Run secrets configured. Existing SNIPPE_API_KEY and SESSION_SECRET settings were preserved."
