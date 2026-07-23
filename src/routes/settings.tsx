@@ -55,13 +55,14 @@ function labelFor(status: IntegrationStatus) {
 }
 
 function Settings() {
+  const authUser = useWorkspaceStore((s) => s.authUser);
   const [profile, setProfile] = useState({
-    name: "Amina Events & Supplies",
-    phone: "+255 754 123 456",
-    email: "hello@aminaevents.tz",
-    address: "Sinza, Dar es Salaam, Tanzania",
+    name: authUser?.name ?? "Your business name",
+    phone: authUser?.email ?? "+255 ...",
+    email: authUser?.email ?? "you@example.com",
+    address: "Your business address",
     currency: "TZS",
-    language: "Swahili (default) + English",
+    language: "Swahili + English",
     timezone: "Africa/Dar_es_Salaam",
   });
   const [notif, setNotif] = useState({ newMessage: true, newOrder: true, paymentReceived: true, dailySummary: false });
@@ -104,7 +105,7 @@ function Settings() {
               <div><Label>Invoice prefix</Label><Input defaultValue="INV-" /></div>
               <div><Label>Quotation prefix</Label><Input defaultValue="QUO-" /></div>
               <div><Label>Payment terms (days)</Label><Input defaultValue="7" type="number" /></div>
-              <div className="md:col-span-2"><Label>Default invoice notes</Label><Textarea defaultValue="Thank you for your business. Payments accepted via M-Pesa (Till 12345)." /></div>
+              <div className="md:col-span-2"><Label>Default invoice notes</Label><Textarea defaultValue="Thank you for your business. Payments accepted via mobile money or bank transfer." /></div>
             </div>
             <div className="flex justify-end"><Button className="gradient-primary" onClick={() => toast.success("Invoicing preferences saved")}>Save</Button></div>
           </TabsContent>

@@ -21,7 +21,7 @@ export const Route = createFileRoute("/ai-assistant")({
 const examples = [
   "Summarize today's customer conversations.",
   "Show unpaid invoices.",
-  "Create a quotation for Amina.",
+  "Create a quotation for a customer.",
   "Which customers need follow-up?",
   "Generate a polite payment reminder in Swahili.",
   "What product sold most this month?",

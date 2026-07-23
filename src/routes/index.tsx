@@ -120,8 +120,8 @@ function DashboardPreview() {
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div className="rounded-xl bg-muted/40 p-3 text-xs">
             <div className="flex items-center gap-2 text-muted-foreground"><MessageSquare className="h-3.5 w-3.5" /> Latest chat</div>
-            <div className="mt-2 font-medium truncate">Amina Mushi</div>
-            <div className="text-muted-foreground truncate">“Ndio, niandalie quotation…”</div>
+            <div className="mt-2 font-medium truncate">Live workspace</div>
+            <div className="text-muted-foreground truncate">“Customer messages, orders and payments sync in real time.”</div>
           </div>
           <div className="rounded-xl bg-muted/40 p-3 text-xs">
             <div className="flex items-center gap-2 text-muted-foreground"><Receipt className="h-3.5 w-3.5" /> INV-3120</div>
