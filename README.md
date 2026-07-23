@@ -96,6 +96,13 @@ Set `OPENAI_API_KEY` as a Cloud Run environment variable if you want live AI res
 Set `GEMINI_API_KEY` as a fallback key if OpenAI is unavailable.
 Set `SNIPPE_API_KEY` and `SNIPPE_WEBHOOK_SECRET` to enable live mobile-money payment links and webhook verification.
 
+Configure Gemini and the Snippe webhook secret without exposing either value in
+shell history:
+
+```sh
+bash scripts/configure-cloud-run-secrets.sh
+```
+
 ## Structure
 
 - `src/routes/` - file-based TanStack routes

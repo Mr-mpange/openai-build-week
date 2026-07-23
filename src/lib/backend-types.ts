@@ -34,6 +34,11 @@ export type IntegrationStatus = "configured" | "missing-key" | "needs-webhook" |
 export type LoginResponse = { ok: true; user: { name: string; email: string }; token: string } | { ok: false; error: string };
 
 export type AuthUser = { name: string; email: string };
+export type SummaryRequest =
+  | { scope: "workspace" }
+  | { scope: "customer"; id: string }
+  | { scope: "conversation"; id: string };
+export type SummaryResponse = { ok: true; text: string; generatedAt: string };
 
 export type AddCustomerInput = Omit<Customer, "id" | "createdAt">;
 export type AddProductInput = Omit<Product, "id">;

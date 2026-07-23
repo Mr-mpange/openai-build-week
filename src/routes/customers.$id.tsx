@@ -9,6 +9,8 @@ import { ArrowLeft, Mail, MapPin, Phone, Sparkles, Tag, Users } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/customers/$id")({
   loader: workspaceRouteLoader,
@@ -35,6 +37,21 @@ function CustomerDetail() {
   const payments = useCustomerPayments(id);
   const conversations = useCustomerConversations(id);
   const team = useWorkspaceStore((s) => s.team);
+  const [summary, setSummary] = useState("Loading backend summary...");
+
+  useEffect(() => {
+    let active = true;
+    void api.summary({ scope: "customer", id })
+      .then((result) => {
+        if (active) setSummary(result.text);
+      })
+      .catch(() => {
+        if (active) setSummary("Summary is temporarily unavailable.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [id]);
 
   if (!c) {
     return (
@@ -87,9 +104,7 @@ function CustomerDetail() {
 
           <div className="card-elevated rounded-2xl p-5 lg:col-span-2">
             <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground"><Sparkles className="h-3.5 w-3.5 text-cyan" /> AI summary</div>
-            <p className="mt-2 text-sm">
-              {c.name.split(" ")[0]} is a {c.status} customer from {c.location}. Total lifetime value {TZS(c.totalSpend)}, outstanding {TZS(c.outstanding)}. Prefers {c.language === "sw" ? "Swahili" : c.language === "en" ? "English" : "Swahili & English"} communication via {c.source}. Recommend next: {c.outstanding > 0 ? "send balance reminder and confirm delivery." : "check-in follow-up and upsell related products."}
-            </p>
+            <p className="mt-2 text-sm">{summary}</p>
             <div className="mt-4">
               <Tabs defaultValue="timeline">
                 <TabsList>

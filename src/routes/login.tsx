@@ -45,19 +45,24 @@ function LoginPage() {
 
   const onSubmit = form.handleSubmit(async (values) => {
     setPending(true);
-    const res = await api.login(values.email, values.password);
-    setPending(false);
-    if (!res.ok) {
-      toast.error(res.error);
-      return;
+    try {
+      const res = await api.login(values.email, values.password);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      setSuccess(true);
+      api.setSession(res.token, Boolean(values.remember));
+      login();
+      setAuthUser(res.user);
+      await hydrateWorkspace(true);
+      toast.success(`Welcome back, ${res.user.name}!`);
+      setTimeout(() => navigate({ to: "/dashboard" }), 500);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Sign in failed");
+    } finally {
+      setPending(false);
     }
-    setSuccess(true);
-    api.setSession(res.token);
-    login();
-    setAuthUser(res.user);
-    await hydrateWorkspace(true);
-    toast.success(`Welcome back, ${res.user.name}!`);
-    setTimeout(() => navigate({ to: "/dashboard" }), 500);
   });
 
   return (

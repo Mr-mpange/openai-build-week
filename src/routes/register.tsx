@@ -25,7 +25,7 @@ export const Route = createFileRoute("/register")({
 const schema = z.object({
   name: z.string().min(2, "Enter your name"),
   email: z.string().email("Enter a valid email"),
-  password: z.string().min(6, "At least 6 characters"),
+  password: z.string().min(10, "At least 10 characters"),
   accept: z.boolean().refine((v) => v, "Accept the terms"),
 });
 
@@ -43,18 +43,23 @@ function RegisterPage() {
 
   const onSubmit = form.handleSubmit(async (values) => {
     setPending(true);
-    const res = await api.register(values.name, values.email, values.password);
-    setPending(false);
-    if (!res.ok) {
-      toast.error(res.error);
-      return;
+    try {
+      const res = await api.register(values.name, values.email, values.password);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      api.setSession(res.token);
+      login();
+      setAuthUser(res.user);
+      await hydrateWorkspace(true);
+      toast.success(`Welcome, ${res.user.name}`);
+      navigate({ to: "/dashboard" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Account creation failed");
+    } finally {
+      setPending(false);
     }
-    api.setSession(res.token);
-    login();
-    setAuthUser(res.user);
-    await hydrateWorkspace(true);
-    toast.success(`Welcome, ${res.user.name}`);
-    navigate({ to: "/dashboard" });
   });
 
   return (

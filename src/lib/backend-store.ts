@@ -1,6 +1,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
+import crypto from "node:crypto";
+import { promisify } from "node:util";
 
 import {
   type ActivityLog,
@@ -22,7 +24,9 @@ import type { IntegrationStatus } from "./backend-types";
 
 const DB_DIR = path.join(process.cwd(), ".data");
 const DB_FILE = path.join(DB_DIR, "biasharasauti-db.json");
+const ACCOUNTS_FILE = path.join(DB_DIR, "biasharasauti-accounts.json");
 const dbScopeStorage = new AsyncLocalStorage<string>();
+const scrypt = promisify(crypto.scrypt);
 
 const emptyState = (): AppState => ({
   customers: [],
@@ -41,6 +45,8 @@ const emptyState = (): AppState => ({
 type DbFile = AppState & { version: 1 };
 
 const cache = new Map<string, DbFile>();
+type Account = { name: string; email: string; passwordHash: string; salt: string; createdAt: string };
+let accountsCache: Account[] | null = null;
 
 const uid = (p: string) => `${p}-${Math.random().toString(36).slice(2, 8)}`;
 const nextNum = (list: { number?: string }[], prefix: string) => {
@@ -95,6 +101,53 @@ export async function resetDb(scope = "shared") {
   const db = { version: 1 as const, ...emptyState() };
   await saveDb(db, effectiveScope);
   return db;
+}
+
+async function loadAccounts() {
+  if (accountsCache) return accountsCache;
+  await mkdir(DB_DIR, { recursive: true });
+  try {
+    accountsCache = JSON.parse(await readFile(ACCOUNTS_FILE, "utf8")) as Account[];
+  } catch {
+    accountsCache = [];
+    await writeFile(ACCOUNTS_FILE, "[]", "utf8");
+  }
+  return accountsCache;
+}
+
+async function saveAccounts(accounts: Account[]) {
+  accountsCache = accounts;
+  await mkdir(DB_DIR, { recursive: true });
+  await writeFile(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2), "utf8");
+}
+
+export async function registerAccount(name: string, email: string, password: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const accounts = await loadAccounts();
+  if (accounts.some((account) => account.email === normalizedEmail)) {
+    throw new Error("An account with this email already exists");
+  }
+  const salt = crypto.randomBytes(16).toString("hex");
+  const passwordHash = Buffer.from(await scrypt(password, salt, 64) as Buffer).toString("hex");
+  const account: Account = {
+    name: name.trim(),
+    email: normalizedEmail,
+    passwordHash,
+    salt,
+    createdAt: new Date().toISOString(),
+  };
+  await saveAccounts([...accounts, account]);
+  return { name: account.name, email: account.email };
+}
+
+export async function authenticateAccount(email: string, password: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const account = (await loadAccounts()).find((candidate) => candidate.email === normalizedEmail);
+  if (!account) return null;
+  const actual = Buffer.from(await scrypt(password, account.salt, 64) as Buffer);
+  const expected = Buffer.from(account.passwordHash, "hex");
+  if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) return null;
+  return { name: account.name, email: account.email };
 }
 
 export function publicState(db: DbFile): AppState {
@@ -228,6 +281,10 @@ export async function recordPayment(invoiceId: string, amount: number, method: P
   const db = await loadDb();
   const invoice = db.invoices.find((x) => x.id === invoiceId);
   if (!invoice) throw new Error("Invoice not found");
+  const outstanding = Math.max(0, invoice.total - invoice.paid);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > outstanding) {
+    throw new Error("Payment amount must be positive and cannot exceed the invoice balance");
+  }
   const pay: Payment = {
     id: uid("pay"),
     reference: `${method.split(" ")[0].toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
@@ -281,6 +338,12 @@ export async function markInvoicePaidByWebhook(invoiceId: string, amount: number
   const db = await loadDb();
   const invoice = db.invoices.find((x) => x.id === invoiceId);
   if (!invoice) throw new Error("Invoice not found");
+  const duplicate = db.payments.find((payment) => payment.reference === reference);
+  if (duplicate) return { db: publicState(db), payment: duplicate };
+  const outstanding = Math.max(0, invoice.total - invoice.paid);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > outstanding) {
+    throw new Error("Webhook payment amount is invalid for this invoice");
+  }
   const pay: Payment = {
     id: uid("pay"),
     reference,

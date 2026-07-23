@@ -6,6 +6,7 @@ import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import {
   bootstrapState,
+  authenticateAccount,
   assignOrder,
   attachInvoicePaymentLink,
   convertQuotationToInvoice,
@@ -20,6 +21,7 @@ import {
   loadDb,
   markConversationRead,
   recordPayment,
+  registerAccount,
   markInvoicePaidByWebhook,
   resetDb,
   toggleAutomation,
@@ -31,11 +33,17 @@ import {
   runAutomation,
   runWithDbScope,
 } from "./lib/backend-store";
-import type { AiRequest, AiResponse, ApiAction } from "./lib/backend-types";
+import type { AiRequest, AiResponse, ApiAction, SummaryRequest, SummaryResponse } from "./lib/backend-types";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
+
+class ApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
@@ -79,20 +87,68 @@ function corsHeaders(request: Request): Headers {
   const headers = new Headers({
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers": "authorization, content-type",
-    "access-control-expose-headers": "set-cookie",
-    "access-control-allow-credentials": "true",
     vary: "origin",
   });
-  if (origin) {
+  if (origin && allowedOrigins().has(origin)) {
     headers.set("access-control-allow-origin", origin);
   }
   return headers;
+}
+
+function allowedOrigins() {
+  const configured = process.env.ALLOWED_ORIGINS?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? [];
+  return new Set([
+    "https://mr-mpange.github.io",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    ...configured,
+  ]);
+}
+
+type RateLimitEntry = { count: number; resetAt: number };
+const rateLimits = new Map<string, RateLimitEntry>();
+
+function rateLimit(request: Request, bucket: string, max: number, windowMs: number) {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const key = `${bucket}:${forwarded || "unknown"}`;
+  const now = Date.now();
+  const current = rateLimits.get(key);
+  if (!current || current.resetAt <= now) {
+    rateLimits.set(key, { count: 1, resetAt: now + windowMs });
+    return null;
+  }
+  current.count += 1;
+  if (current.count <= max) return null;
+  return Response.json(
+    { error: "Too many requests. Please try again later." },
+    { status: 429, headers: { "retry-after": String(Math.ceil((current.resetAt - now) / 1000)) } },
+  );
+}
+
+async function readBody(request: Request, maxBytes = 256_000) {
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (declared > maxBytes) throw new ApiError("Request body is too large", 413);
+  const body = await request.text();
+  if (Buffer.byteLength(body, "utf8") > maxBytes) throw new ApiError("Request body is too large", 413);
+  return body;
+}
+
+async function readJson<T>(request: Request): Promise<T> {
+  try {
+    return JSON.parse(await readBody(request)) as T;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError("Invalid JSON body", 400);
+  }
 }
 
 function withCors(request: Request, response: Response): Response {
   const headers = new Headers(response.headers);
   const cors = corsHeaders(request);
   cors.forEach((value, key) => headers.set(key, value));
+  headers.set("cache-control", "no-store");
+  headers.set("referrer-policy", "no-referrer");
+  headers.set("x-content-type-options", "nosniff");
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -126,6 +182,10 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
   const scope = session?.email ?? "shared";
   try {
     return await runWithDbScope(scope, async () => {
+      const origin = request.headers.get("origin");
+      if (origin && !allowedOrigins().has(origin)) {
+        return new Response("Origin not allowed", { status: 403, headers: { vary: "origin" } });
+      }
       if (request.method === "OPTIONS") {
         return new Response(null, { status: 204, headers: corsHeaders(request) });
       }
@@ -139,60 +199,91 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
         return withCors(request, Response.json({ user, workspace: db.team[0] ?? null }));
       }
       if (request.method === "POST" && url.pathname === "/api/login") {
-        const { email, password } = await request.json() as { email?: string; password?: string };
+        const limited = rateLimit(request, "auth", 10, 15 * 60_000);
+        if (limited) return withCors(request, limited);
+        const { email, password } = await readJson<{ email?: string; password?: string }>(request);
         if (!email || !password) return withCors(request, Response.json({ ok: false, error: "Email and password are required" }, { status: 400 }));
-        const user = { name: email.split("@")[0], email };
+        const user = await authenticateAccount(email, password);
+        if (!user) return withCors(request, Response.json({ ok: false, error: "Invalid email or password" }, { status: 401 }));
         const token = createSessionToken(user, env);
-        const headers = new Headers({ "content-type": "application/json" });
-        headers.append("set-cookie", `bs_session=${token}; Path=/; HttpOnly; SameSite=Lax`);
-        return withCors(request, new Response(JSON.stringify({ ok: true, token, user }), { headers }));
+        return withCors(request, Response.json({ ok: true, token, user }));
       }
       if (request.method === "POST" && url.pathname === "/api/register") {
-        const { name, email, password } = await request.json() as { name?: string; email?: string; password?: string };
+        const limited = rateLimit(request, "auth", 10, 15 * 60_000);
+        if (limited) return withCors(request, limited);
+        const { name, email, password } = await readJson<{ name?: string; email?: string; password?: string }>(request);
         if (!name || !email || !password) return withCors(request, Response.json({ ok: false, error: "Name, email, and password are required" }, { status: 400 }));
-        const user = { name: name.trim(), email };
+        if (name.trim().length < 2 || name.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 10 || password.length > 128) {
+          return withCors(request, Response.json({ ok: false, error: "Use a valid name, email, and password of at least 10 characters" }, { status: 400 }));
+        }
+        let user;
+        try {
+          user = await registerAccount(name, email, password);
+        } catch (error) {
+          if (error instanceof Error && error.message.includes("already exists")) {
+            return withCors(request, Response.json({ ok: false, error: error.message }, { status: 409 }));
+          }
+          throw error;
+        }
         const token = createSessionToken(user, env);
-        const headers = new Headers({ "content-type": "application/json" });
-        headers.append("set-cookie", `bs_session=${token}; Path=/; HttpOnly; SameSite=Lax`);
-        return withCors(request, new Response(JSON.stringify({ ok: true, token, user }), { headers }));
+        return withCors(request, Response.json({ ok: true, token, user }));
       }
       if (request.method === "POST" && url.pathname === "/api/logout") {
-        const headers = new Headers({ "content-type": "application/json" });
-        headers.append("set-cookie", "bs_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
-        return withCors(request, new Response(JSON.stringify({ ok: true }), { headers }));
+        return withCors(request, Response.json({ ok: true }));
       }
       if (request.method === "POST" && url.pathname === "/api/action") {
         if (!session) return withCors(request, Response.json({ error: "Unauthorized" }, { status: 401 }));
-        const action = await request.json() as ApiAction;
+        const action = await readJson<ApiAction>(request);
+        if (!action || typeof action !== "object" || typeof action.type !== "string") {
+          throw new ApiError("Invalid workspace action", 400);
+        }
         const db = await applyAction(action);
         return withCors(request, Response.json(db));
       }
       if (request.method === "POST" && url.pathname === "/api/payments/link") {
         if (!session) return withCors(request, Response.json({ error: "Unauthorized" }, { status: 401 }));
-        const { invoiceId } = await request.json() as { invoiceId?: string };
+        const { invoiceId } = await readJson<{ invoiceId?: string }>(request);
         if (!invoiceId) return withCors(request, Response.json({ ok: false, error: "invoiceId is required" }, { status: 400 }));
-        const created = await createSnippePaymentLink(invoiceId, env);
+        const created = await createSnippePaymentLink(invoiceId, session.email, request.url, env);
         const result = await attachInvoicePaymentLink(invoiceId, created.url);
         return withCors(request, Response.json({ ok: true, invoice: result.invoice }));
       }
       if (request.method === "POST" && url.pathname === "/api/webhooks/snippe") {
-        const rawBody = await request.text();
+        const rawBody = await readBody(request);
         const event = verifySnippeWebhook(request, rawBody, env);
         if (event.type === "payment.completed") {
-          const invoiceId = String(event.data?.metadata?.invoice_id ?? event.data?.metadata?.order_id ?? event.data?.reference ?? "");
+          const metadata = event.data?.metadata;
+          const invoiceId = String(metadata?.invoice_id ?? metadata?.order_id ?? event.data?.reference ?? "");
+          const workspace = String(metadata?.workspace ?? "");
           const amount = Number(event.data?.amount?.value ?? 0);
           const reference = String(event.data?.reference ?? event.id ?? "");
-          if (!invoiceId || !amount || !reference) {
-            return withCors(request, Response.json({ ok: false, error: "invoiceId, amount, and reference are required" }, { status: 400 }));
+          if (!workspace || !invoiceId || !amount || !reference) {
+            return withCors(request, Response.json({ ok: false, error: "workspace, invoiceId, amount, and reference are required" }, { status: 400 }));
           }
-          const result = await markInvoicePaidByWebhook(invoiceId, amount, reference, "snippe");
+          const result = await runWithDbScope(workspace, () => markInvoicePaidByWebhook(invoiceId, amount, reference, "snippe"));
           return withCors(request, Response.json({ ok: true, payment: result.payment }));
         }
         return withCors(request, Response.json({ ok: true }));
       }
+      if (request.method === "POST" && url.pathname === "/api/summary") {
+        if (!session) return withCors(request, Response.json({ error: "Unauthorized" }, { status: 401 }));
+        const limited = rateLimit(request, "summary", 60, 60_000);
+        if (limited) return withCors(request, limited);
+        const body = await readJson<SummaryRequest>(request);
+        if (!body || !["workspace", "customer", "conversation"].includes(body.scope)) {
+          throw new ApiError("Invalid summary scope", 400);
+        }
+        return withCors(request, Response.json(await createSummary(body)));
+      }
       if (request.method === "POST" && url.pathname === "/api/ai") {
         if (!session) return withCors(request, Response.json({ error: "Unauthorized" }, { status: 401 }));
-        const body = await request.json() as AiRequest;
+        const limited = rateLimit(request, "ai", 30, 60_000);
+        if (limited) return withCors(request, limited);
+        const body = await readJson<AiRequest>(request);
+        if (!body || !["chat", "transcribe"].includes(body.mode)) throw new ApiError("Invalid AI mode", 400);
+        if (body.mode === "chat" && (typeof body.prompt !== "string" || !body.prompt.trim() || body.prompt.length > 4_000)) {
+          throw new ApiError("Prompt must be between 1 and 4,000 characters", 400);
+        }
         const result = await handleAi(body, env);
         return withCors(request, Response.json(result));
       }
@@ -200,11 +291,16 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
     });
   } catch (error) {
     console.error(error);
-    return withCors(request, Response.json({ error: error instanceof Error ? error.message : "Server error" }, { status: 500 }));
+    const status = error instanceof ApiError ? error.status : 500;
+    const message = error instanceof ApiError ? error.message : "Internal server error";
+    return withCors(request, Response.json({ error: message }, { status }));
   }
 }
 
 async function handleAi(body: AiRequest, env: unknown): Promise<AiResponse> {
+  if (body.mode === "transcribe" && !body.prompt?.trim()) {
+    return { ok: false, error: "A voice transcript or audio transcription input is required" };
+  }
   if (body.mode === "chat") {
     const business = await handleBusinessQuery(body.prompt);
     if (business) return business;
@@ -330,7 +426,7 @@ async function runOpenAi(client: OpenAI, body: AiRequest): Promise<AiResponse> {
 
 async function handleGeminiFallback(body: AiRequest, env: unknown): Promise<AiResponse> {
   const apiKey = getGeminiApiKey(env);
-  if (!apiKey) return fallbackAi(body);
+  if (!apiKey) return { ok: false, error: "No AI provider is configured" };
 
   const systemPrompt = body.mode === "transcribe" ? transcribeSystemPrompt() : businessSystemPrompt();
   const userPrompt =
@@ -371,16 +467,16 @@ async function handleGeminiFallback(body: AiRequest, env: unknown): Promise<AiRe
     }>;
   };
   const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() ?? "";
-  if (!text) return fallbackAi(body);
+  if (!text) return { ok: false, error: "Gemini returned an empty response" };
 
   if (body.mode === "transcribe") {
     try {
       const parsed = JSON.parse(text) as AiResponse;
       if (parsed.ok === true && "transcript" in parsed) return parsed;
     } catch {
-      return fallbackAi(body);
+      return { ok: false, error: "Gemini returned an invalid transcription response" };
     }
-    return fallbackAi(body);
+    return { ok: false, error: "Gemini returned an invalid transcription response" };
   }
 
   return { ok: true, text };
@@ -412,33 +508,100 @@ function shouldFallBackToGemini(error: unknown): boolean {
   return message.includes("429") || message.includes("quota") || message.includes("billing") || message.includes("insufficient_quota");
 }
 
-async function createSnippePaymentLink(invoiceId: string, env: unknown): Promise<{ url: string }> {
-  const apiKey = getSnippeApiKey(env);
-  if (!apiKey) {
-    const fallbackUrl = `${process.env.SNIPPE_PUBLIC_BASE_URL ?? "https://snippe.sh"}/pay/${invoiceId}`;
-    return { url: fallbackUrl };
+async function createSummary(body: SummaryRequest): Promise<SummaryResponse> {
+  const db = await loadDb();
+  if (body.scope === "customer") {
+    const customer = db.customers.find((candidate) => candidate.id === body.id);
+    if (!customer) throw new ApiError("Customer not found", 404);
+    const invoices = db.invoices.filter((invoice) => invoice.customerId === customer.id);
+    const orders = db.orders.filter((order) => order.customerId === customer.id);
+    const outstanding = invoices.reduce((sum, invoice) => sum + Math.max(0, invoice.total - invoice.paid), 0);
+    return {
+      ok: true,
+      text: `${customer.name} is a ${customer.status} customer in ${customer.location} with ${orders.length} order(s), ${invoices.length} invoice(s), and TZS ${outstanding.toLocaleString("en-US")} outstanding.`,
+      generatedAt: new Date().toISOString(),
+    };
   }
+  if (body.scope === "conversation") {
+    const conversation = db.conversations.find((candidate) => candidate.id === body.id);
+    if (!conversation) throw new ApiError("Conversation not found", 404);
+    const customer = db.customers.find((candidate) => candidate.id === conversation.customerId);
+    const latest = conversation.messages.at(-1);
+    return {
+      ok: true,
+      text: `${customer?.name ?? "Customer"} has a ${conversation.status} ${conversation.channel} conversation with ${conversation.unread} unread message(s). Latest message: ${latest?.body ?? "No messages yet."}`,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+  return {
+    ok: true,
+    text: `Workspace has ${db.customers.length} customer(s), ${db.orders.length} order(s), ${db.invoices.length} invoice(s), and ${db.payments.filter((payment) => payment.status === "successful").length} successful payment(s).`,
+    generatedAt: new Date().toISOString(),
+  };
+}
 
-  const response = await fetch(`${getSnippeBaseUrl(env)}/payment-links`, {
+async function createSnippePaymentLink(invoiceId: string, workspace: string, requestUrl: string, env: unknown): Promise<{ url: string }> {
+  const apiKey = getSnippeApiKey(env);
+  if (!apiKey) throw new ApiError("Snippe is not configured", 503);
+  const db = await loadDb();
+  const invoice = db.invoices.find((candidate) => candidate.id === invoiceId);
+  if (!invoice) throw new ApiError("Invoice not found", 404);
+  const customer = db.customers.find((candidate) => candidate.id === invoice.customerId);
+  if (!customer) throw new ApiError("Invoice customer not found", 404);
+  const amount = Math.max(0, invoice.total - invoice.paid);
+  if (amount < 500) throw new ApiError("Snippe requires an outstanding amount of at least TZS 500", 400);
+  const webhookUrl = `${new URL(requestUrl).origin}/api/webhooks/snippe`;
+  const frontendBase = (process.env.FRONTEND_BASE_URL ?? "https://mr-mpange.github.io/openai-build-week").replace(/\/$/, "");
+
+  const response = await fetch(`${getSnippeBaseUrl(env)}/api/v1/sessions`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${apiKey}`,
+      "idempotency-key": `invoice-${invoiceId}`.slice(0, 30),
     },
     body: JSON.stringify({
-      reference: invoiceId,
-      metadata: { invoiceId },
+      amount,
+      currency: "TZS",
+      allowed_methods: ["mobile_money"],
+      customer: {
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email,
+      },
+      redirect_url: `${frontendBase}/invoices/${invoiceId}`,
+      webhook_url: webhookUrl,
+      description: `Invoice ${invoice.number}`,
+      metadata: { invoice_id: invoiceId, workspace },
+      expires_in: 3600,
+      line_items: invoice.items.slice(0, 50).map((item) => ({
+        id: item.productId,
+        name: item.name,
+        quantity: item.qty,
+        unit_price: item.price,
+      })),
+      display: {
+        show_line_items: true,
+        show_description: true,
+        button_text: "Pay invoice",
+      },
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Snippe payment link creation failed: ${response.status} ${errorText}`);
+    console.error(`Snippe payment link creation failed: ${response.status} ${errorText}`);
+    throw new ApiError("Snippe could not create the payment link", 502);
   }
 
-  const data = await response.json() as { url?: string; payment_link_url?: string; checkout_url?: string };
-  const url = data.url ?? data.payment_link_url ?? data.checkout_url;
-  if (!url) throw new Error("Snippe payment link response did not include a URL");
+  const responseBody = await response.json() as {
+    data?: { payment_link_url?: string; checkout_url?: string };
+    payment_link_url?: string;
+    checkout_url?: string;
+  };
+  const data = responseBody.data ?? responseBody;
+  const url = data.payment_link_url ?? data.checkout_url;
+  if (!url) throw new ApiError("Snippe returned an invalid payment-link response", 502);
   return { url };
 }
 
@@ -467,7 +630,7 @@ type SnippeWebhookEvent = {
     reference?: string;
     external_reference?: string;
     amount?: { value?: number; currency?: string };
-    metadata?: { invoice_id?: string; order_id?: string; url_metadata?: Record<string, unknown> };
+    metadata?: { invoice_id?: string; order_id?: string; workspace?: string; url_metadata?: Record<string, unknown> };
   };
   reference?: string;
   amount?: { value?: number; currency?: string };
@@ -476,19 +639,18 @@ type SnippeWebhookEvent = {
 
 function verifySnippeWebhook(request: Request, rawBody: string, env: unknown): SnippeWebhookEvent {
   const signingKey = getSnippeWebhookSecret(env);
+  if (!signingKey) throw new ApiError("Snippe webhook verification is not configured", 503);
   const timestamp = request.headers.get("x-webhook-timestamp") ?? "";
   const signature = request.headers.get("x-webhook-signature") ?? "";
 
-  if (signingKey) {
-    const eventTime = Number.parseInt(timestamp, 10);
-    if (!Number.isFinite(eventTime) || Math.abs(Math.floor(Date.now() / 1000) - eventTime) > 300) {
-      throw new Error("Webhook timestamp too old");
-    }
-    const message = `${timestamp}.${rawBody}`;
-    const expected = crypto.createHmac("sha256", signingKey).update(message).digest("hex");
-    if (!safeEqualHex(signature, expected)) {
-      throw new Error("Invalid webhook signature");
-    }
+  const eventTime = Number.parseInt(timestamp, 10);
+  if (!Number.isFinite(eventTime) || Math.abs(Math.floor(Date.now() / 1000) - eventTime) > 300) {
+    throw new ApiError("Invalid webhook timestamp", 400);
+  }
+  const message = `${timestamp}.${rawBody}`;
+  const expected = crypto.createHmac("sha256", signingKey).update(message).digest("hex");
+  if (!safeEqualHex(signature, expected)) {
+    throw new ApiError("Invalid webhook signature", 400);
   }
 
   const parsed = JSON.parse(rawBody) as SnippeWebhookEvent;
@@ -507,25 +669,6 @@ function getSnippeWebhookSecret(env: unknown): string | undefined {
   return process.env.SNIPPE_WEBHOOK_SECRET;
 }
 
-function fallbackAi(body: AiRequest): AiResponse {
-  if (body.mode === "transcribe") {
-    return {
-      ok: true,
-      transcript: "Nahitaji crate kumi za maji kwa ajili ya event ya Jumamosi. Delivery iwe Sinza.",
-      language: "sw",
-      confidence: 0.94,
-      intent: "Purchase request",
-      products: [{ name: "Bottled Water Crate", qty: 10 }],
-      deliveryLocation: "Sinza",
-      deliveryDate: "Saturday",
-    };
-  }
-  return {
-    ok: true,
-    text: "Ninaweza kukusaidia na maswali kuhusu wateja, orders, quotations, invoices, payments, na analytics.",
-  };
-}
-
 function normalizeTranscriptionJson(text: string): AiResponse {
   try {
     const parsed = JSON.parse(text) as AiResponse;
@@ -533,7 +676,7 @@ function normalizeTranscriptionJson(text: string): AiResponse {
   } catch {
     // fall through to conservative fallback
   }
-  return fallbackAi({ mode: "transcribe" });
+  return { ok: false, error: "OpenAI returned an invalid transcription response" };
 }
 
 function readSession(request: Request, env: unknown): { email: string; name: string } | null {
@@ -555,8 +698,8 @@ function verifySessionToken(token: string, env: unknown): { email: string; name:
     const actualBuffer = Buffer.from(signature);
     const expectedBuffer = Buffer.from(expected);
     if (actualBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(actualBuffer, expectedBuffer)) return null;
-    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as { email?: string; name?: string };
-    if (!payload.email) return null;
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as { email?: string; name?: string; exp?: number };
+    if (!payload.email || !payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
     return { email: payload.email, name: payload.name || payload.email.split("@")[0] };
   } catch {
     return null;
@@ -564,23 +707,20 @@ function verifySessionToken(token: string, env: unknown): { email: string; name:
 }
 
 function createSessionToken(user: { email: string; name: string }, env: unknown) {
-  const encoded = Buffer.from(JSON.stringify(user)).toString("base64url");
+  const encoded = Buffer.from(JSON.stringify({
+    ...user,
+    exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
+  })).toString("base64url");
   const signature = crypto.createHmac("sha256", getSessionSecret(env)).update(encoded).digest("base64url");
   return `${encoded}.${signature}`;
 }
 
 function getSessionSecret(env: unknown) {
   const record = env && typeof env === "object" ? env as Record<string, unknown> : {};
-  const value =
-    record.SESSION_SECRET ??
-    process.env.SESSION_SECRET ??
-    record.SNIPPE_WEBHOOK_SECRET ??
-    process.env.SNIPPE_WEBHOOK_SECRET ??
-    record.GEMINI_API_KEY ??
-    process.env.GEMINI_API_KEY ??
-    record.OPENAI_API_KEY ??
-    process.env.OPENAI_API_KEY;
-  return typeof value === "string" && value ? value : "biasharasauti-local-development";
+  const value = record.SESSION_SECRET ?? process.env.SESSION_SECRET;
+  if (typeof value === "string" && value) return value;
+  if (process.env.NODE_ENV === "production") throw new Error("SESSION_SECRET is required");
+  return "biasharasauti-local-development";
 }
 
 async function applyAction(action: ApiAction) {

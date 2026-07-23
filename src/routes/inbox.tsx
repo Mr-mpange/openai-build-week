@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout, Avatar, StatusPill } from "@/components/layouts/AppLayout";
 import { useWorkspaceStore, workspaceRouteLoader } from "@/store/workspace";
 import { fmtRelative, fmtTime, TZS } from "@/lib/format";
@@ -12,6 +12,7 @@ import type { Message } from "@/data/domain-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { aiService } from "@/services/backendServices";
+import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/inbox")({
   loader: workspaceRouteLoader,
@@ -124,6 +125,7 @@ function Inbox() {
   const [filter, setFilter] = useState<"all" | "open" | "pending" | "resolved">("all");
   const [text, setText] = useState("");
   const [showList, setShowList] = useState(true);
+  const [summary, setSummary] = useState("Select a conversation to generate its backend summary.");
 
   const filtered = useMemo(() => {
     const list = conversations.filter((c) => {
@@ -139,6 +141,22 @@ function Inbox() {
 
   const active = conversations.find((c) => c.id === selectedId);
   const customer = active ? customers.find((c) => c.id === active.customerId) : undefined;
+
+  useEffect(() => {
+    if (!active) return;
+    let current = true;
+    setSummary("Loading backend summary...");
+    void api.summary({ scope: "conversation", id: active.id })
+      .then((result) => {
+        if (current) setSummary(result.text);
+      })
+      .catch(() => {
+        if (current) setSummary("Summary is temporarily unavailable.");
+      });
+    return () => {
+      current = false;
+    };
+  }, [active?.id]);
 
   const send = async () => {
     if (!active || !text.trim()) return;
@@ -161,14 +179,18 @@ function Inbox() {
   const simulateVoice = async () => {
     if (!active) return;
     const t = toast.loading("Transcribing voice note…");
-    const res = await aiService.transcribe();
-    toast.success("Voice note transcribed", { id: t });
-    sendMessage(active.id, {
-      from: "customer",
-      type: "voice",
-      body: `Voice note (0:${String(15).padStart(2, "0")})`,
-      meta: { duration: 15, transcript: res.transcript, language: res.language, confidence: res.confidence, intent: res.intent, products: res.products, deliveryLocation: res.deliveryLocation, deliveryDate: res.deliveryDate },
-    });
+    try {
+      const res = await aiService.transcribe();
+      toast.success("Voice note transcribed", { id: t });
+      sendMessage(active.id, {
+        from: "customer",
+        type: "voice",
+        body: `Voice note (0:${String(15).padStart(2, "0")})`,
+        meta: { duration: 15, transcript: res.transcript, language: res.language, confidence: res.confidence, intent: res.intent, products: res.products, deliveryLocation: res.deliveryLocation, deliveryDate: res.deliveryDate },
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Voice transcription failed", { id: t });
+    }
   };
 
   return (
@@ -294,9 +316,7 @@ function Inbox() {
             <div className="p-5 space-y-4">
               <div>
                 <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">AI summary</div>
-                <div className="text-sm text-foreground/90">
-                  Repeat events customer. Quotation QUO-2081 sent 30m ago and accepted. Deposit received via M-Pesa; awaiting balance of TZS 360,000 before Saturday delivery to Sinza.
-                </div>
+                <div className="text-sm text-foreground/90">{summary}</div>
               </div>
               <div>
                 <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Suggested actions</div>
