@@ -141,6 +141,13 @@ async function handleApi(request: Request, env: unknown): Promise<Response> {
       headers.append("set-cookie", `bs_session=${Buffer.from(email ?? "").toString("base64")}; Path=/; HttpOnly; SameSite=Lax`);
       return withCors(request, new Response(JSON.stringify({ ok: true, token: "session", user: { name: email.split("@")[0], email } }), { headers }));
     }
+    if (request.method === "POST" && url.pathname === "/api/register") {
+      const { email, password } = await request.json() as { email?: string; password?: string };
+      if (!email || !password) return withCors(request, Response.json({ ok: false, error: "Email and password are required" }, { status: 400 }));
+      const headers = new Headers({ "content-type": "application/json" });
+      headers.append("set-cookie", `bs_session=${Buffer.from(email ?? "").toString("base64")}; Path=/; HttpOnly; SameSite=Lax`);
+      return withCors(request, new Response(JSON.stringify({ ok: true, token: "session", user: { name: email.split("@")[0], email } }), { headers }));
+    }
     if (request.method === "POST" && url.pathname === "/api/logout") {
       const headers = new Headers({ "content-type": "application/json" });
       headers.append("set-cookie", "bs_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");

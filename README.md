@@ -15,7 +15,7 @@ BiasharaSauti is an AI business assistant for African SMEs. It turns WhatsApp ch
 - Dashboard with revenue, orders, payments, and conversation analytics
 - Shared inbox for customer messages
 - AI assistant route for productivity prompts and voice transcription
-- Invite-only access flow with a `/register` route that redirects users to request access
+- Self-service access flow with a `/register` route for new accounts
 - Customers, orders, quotations, invoices, payments, products, analytics, automations, team, workflow, and settings screens
 
 ## Tech Stack
